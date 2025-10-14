@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cqwu.cqwu_appointment_system.component.redis.RedisCache;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 
@@ -17,13 +18,16 @@ import static org.junit.jupiter.api.Assertions.*;
 class CqwuAppointmentSystemApplicationTests {
 
 	@Autowired
-	private VenueMapper venueMapper; // 变量名遵循 Java 命名规范 (camelCase)
+	private VenueMapper venueMapper;
+
+	@Autowired
+    private RedisCache redisCache;
 
 	/**
 	 * 测试向 venue 表插入一条数据，并验证插入是否成功
 	 */
 	@Test
-	// @Transactional // 关键注解：让测试运行在事务中，测试结束后自动回滚，不污染数据库
+	@Transactional // 关键注解：让测试运行在事务中，测试结束后自动回滚，不污染数据库
 	void test_venue_mapper_insert_data() {
 		// 1. 准备要插入的数据 (Arrange)
 		Venue newVenue = new Venue();
@@ -59,5 +63,12 @@ class CqwuAppointmentSystemApplicationTests {
 
 		System.out.println("测试成功：成功插入场所数据，ID为: " + newVenue.getId());
 		System.out.println("从数据库回查的数据为: " + insertedVenue);
+	}
+
+	@Test
+	@Transactional
+	void test_insert_data_into_redis() {
+		redisCache.setCacheObject("RedisInsertTest", "insert successful");
+		assertEquals(true, redisCache.expire("RedisInsertTest", 60));
 	}
 }
