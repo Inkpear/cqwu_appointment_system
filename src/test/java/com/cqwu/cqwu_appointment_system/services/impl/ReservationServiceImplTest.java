@@ -40,7 +40,7 @@ public class ReservationServiceImplTest {
     void findReservationsByUserIdTest()
     {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Reservation> page = reservationServiceIpml.findReservationsByUserId(1L,pageable);
+        Page<Reservation> page = reservationServiceIpml.findReservationsByUserId(2L,pageable);
         System.out.println("总页数: " + page.getTotalPages());
         System.out.println("总条数: " + page.getTotalElements());
         System.out.println("当前页内容: " + page.getContent());
