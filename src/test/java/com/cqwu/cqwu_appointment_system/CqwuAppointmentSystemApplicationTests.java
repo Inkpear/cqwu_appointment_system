@@ -9,7 +9,6 @@ import com.cqwu.cqwu_appointment_system.component.redis.RedisCache;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 
-import java.sql.Time;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,7 +20,7 @@ class CqwuAppointmentSystemApplicationTests {
 	private VenueMapper venueMapper;
 
 	@Autowired
-    private RedisCache redisCache;
+	private RedisCache redisCache;
 
 	/**
 	 * 测试向 venue 表插入一条数据，并验证插入是否成功
@@ -37,15 +36,15 @@ class CqwuAppointmentSystemApplicationTests {
 		newVenue.setCategoryId(1L); // 假设分类ID为1
 		newVenue.setEquipment("投影仪, 音响, 无线麦克风");
 		newVenue.setStatus("available"); // 使用表定义中的默认值
-		newVenue.setOpenTime(Time.valueOf(LocalTime.of(8, 0, 0)));
-		newVenue.setCloseTime(Time.valueOf(LocalTime.of(22, 0, 0)));
+		newVenue.setOpenTime(LocalTime.of(8, 0, 0));
+		newVenue.setCloseTime(LocalTime.of(22, 0, 0));
 
 		// 2. 执行插入操作 (Act)
 		// insertSelective 方法只会插入那些值不为 null 的字段，更灵活
 		int affectedRows = venueMapper.insertSelective(newVenue);
 
 		// 3. 验证结果 (Assert)
-		
+
 		// 断言1：确认 insertSelective 操作返回了 1，表示有一行受到了影响
 		assertEquals(1, affectedRows, "插入操作应该影响1行数据");
 
@@ -59,10 +58,7 @@ class CqwuAppointmentSystemApplicationTests {
 		assertNotNull(insertedVenue, "根据新ID应该能从数据库中查出记录");
 		assertEquals("多功能报告厅A厅", insertedVenue.getName(), "查询出的场所名称应与插入时一致");
 		assertEquals(200, insertedVenue.getCapacity(), "查询出的场所容量应与插入时一致");
-        assertEquals(Time.valueOf(LocalTime.of(8, 0, 0)), insertedVenue.getOpenTime(), "查询出的开放时间应与插入时一致");
-
-		System.out.println("测试成功：成功插入场所数据，ID为: " + newVenue.getId());
-		System.out.println("从数据库回查的数据为: " + insertedVenue);
+		assertEquals(LocalTime.of(8, 0, 0), insertedVenue.getOpenTime(), "查询出的开放时间应与插入时一致");
 	}
 
 	@Test
