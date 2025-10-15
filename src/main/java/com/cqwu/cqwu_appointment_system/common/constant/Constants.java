@@ -46,4 +46,35 @@ public class Constants {
      * 通用失败标识
      */
     public static final String FAIL = "1";
+
+
+    /**
+     * 默认分页位置
+     */
+    public static final Integer DEFAULT_PAGE = 0;
+
+    /**
+     * 默认分页大小
+     */
+    public static final Integer DEFAULT_PAGE_SIZE = 5;
+
+    /**
+     * 查询成功消息
+     */
+    public static final String QUERY_SUCCESS = "查询成功";
+
+    /**
+     * 查询失败消息
+     */
+    public static final String QUERY_FAIL = "查询失败";
+
+    /**
+     * 创建成功消息
+     */
+    public static final String CREATE_SUCCESS = "创建成功";
+
+    /**
+     * 查询失败消息
+     */
+    public static final String CREATE_FAIL = "创建失败";
 }
