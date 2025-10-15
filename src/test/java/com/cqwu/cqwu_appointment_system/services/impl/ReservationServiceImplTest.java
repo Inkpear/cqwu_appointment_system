@@ -46,10 +46,10 @@ public class ReservationServiceImplTest {
         System.out.println("当前页内容: " + page.getContent());
     }
 
-//    @Test
-//    void cancelReservationTest()
-//    {
-//
-//        reservationServiceIpml.cancelReservationByUser();
-//    }
+    @Test
+    void cancelReservationByUserTest()
+    {
+        reservationServiceIpml.cancelReservationByUser(10L,2L);
+        findReservationsByUserIdTest();
+    }
 }
