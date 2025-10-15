@@ -36,6 +36,11 @@ public class IReservationServiceImpl implements IReservationService {
     @Autowired
     private VenueMapper venueMapper; // 假设您也有一个VenueMapper
 
+    /**
+     *
+     * @param reservation 包含 venueId, userId, startTime, endTime, purpose 的预约信息对象
+     * @return
+     */
     @Override
     @Transactional
     public Reservation createReservation(Reservation reservation) {
@@ -73,6 +78,14 @@ public class IReservationServiceImpl implements IReservationService {
         return reservation;
     }
 
+
+    /**
+     *
+     * @param venueId 场所ID
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return
+     */
     @Override
     public boolean isVenueAvailable(Long venueId, LocalDateTime startTime, LocalDateTime endTime) {
         ReservationExample example = new ReservationExample();
@@ -87,6 +100,11 @@ public class IReservationServiceImpl implements IReservationService {
         return reservationMapper.countByExample(example) == 0;
     }
 
+    /**
+     *
+     * @param reservationId 要取消的预约ID
+     * @param userId 操作者用户ID (用于安全校验)
+     */
     @Override
     @Transactional
     public void cancelReservationByUser(Long reservationId, Long userId) {
@@ -102,6 +120,12 @@ public class IReservationServiceImpl implements IReservationService {
         updateReservationStatus(reservationId, "cancelled");
     }
 
+    /**
+     *
+     * @param userId 用户ID
+     * @param pageable 分页参数 (包含页码, 每页大小, 排序规则)
+     * @return
+     */
     @Override
     public Page<Reservation> findReservationsByUserId(Long userId, Pageable pageable) {
         // 使用PageHelper进行分页
@@ -117,6 +141,10 @@ public class IReservationServiceImpl implements IReservationService {
         return new PageImpl<>(pageInfo.getList(), pageable, pageInfo.getTotal());
     }
 
+    /**
+     *
+     * @param reservationId 预约ID
+     */
     @Override
     @Transactional
     public void approveReservation(Long reservationId) {
@@ -127,6 +155,11 @@ public class IReservationServiceImpl implements IReservationService {
         updateReservationStatus(reservationId, "confirmed");
     }
 
+    /**
+     *
+     * @param reservationId 预约ID
+     * @param reason 拒绝原因 (可选)
+     */
     @Override
     @Transactional
     public void rejectReservation(Long reservationId, String reason) {
@@ -136,6 +169,12 @@ public class IReservationServiceImpl implements IReservationService {
         }
         updateReservationStatus(reservationId, "rejected");
     }
+
+    /**
+     *
+     * @param reservationId 要取消的预约ID
+     * @param reason 取消原因
+     */
 
     @Override
     @Transactional
@@ -148,6 +187,16 @@ public class IReservationServiceImpl implements IReservationService {
 //    public Page<Reservation> searchReservations(Long venueId, Long userId, String status, LocalDateTime date, Pageable pageable) {
 //        return null;
 //    }
+
+    /**
+     *
+     * @param venueId 场所ID (可选, 为null则不作为查询条件)
+     * @param userId 用户ID (可选)
+     * @param status 预约状态 (可选)
+     * @param date 日期 (可选, 查询指定某一天的预约)
+     * @param pageable 分页参数
+     * @return
+     */
 
     @Override
     public Page<Reservation> searchReservations(Long venueId, Long userId, String status, LocalDate date, Pageable pageable) {
@@ -180,11 +229,22 @@ public class IReservationServiceImpl implements IReservationService {
         return new PageImpl<>(pageInfo.getList(), pageable, pageInfo.getTotal());
     }
 
+    /**
+     *
+     * @param reservationId 预约ID
+     * @return
+     */
+
     @Override
     public Reservation findReservationById(Long reservationId) {
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
+    /**
+     *
+     * @param reservationCode 预约码
+     * @return
+     */
     @Override
     public Reservation findReservationByCode(String reservationCode) {
         ReservationExample example = new ReservationExample();
@@ -193,6 +253,12 @@ public class IReservationServiceImpl implements IReservationService {
         return CollectionUtils.isEmpty(reservations) ? null : reservations.get(0);
     }
 
+    /**
+     *
+     * @param venueId 场所ID
+     * @param limit 返回记录的数量
+     * @return
+     */
     @Override
     public List<Reservation> getUpcomingReservations(Long venueId, int limit) {
         // 使用PageHelper的limit功能
@@ -210,6 +276,11 @@ public class IReservationServiceImpl implements IReservationService {
 
     // --- 内部辅助方法 ---
 
+    /**
+     *
+     * @param reservationId
+     * @return
+     */
     private Reservation findAndCheckReservation(Long reservationId) {
         Reservation reservation = reservationMapper.selectByPrimaryKey(reservationId);
         if (reservation == null) {
@@ -218,6 +289,11 @@ public class IReservationServiceImpl implements IReservationService {
         return reservation;
     }
 
+    /**
+     *
+     * @param reservationId
+     * @param newStatus
+     */
     private void updateReservationStatus(Long reservationId, String newStatus) {
         Reservation updateEntity = new Reservation();
         updateEntity.setId(reservationId);
