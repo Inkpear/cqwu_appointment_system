@@ -52,4 +52,20 @@ public class ReservationServiceImplTest {
         reservationServiceIpml.cancelReservationByUser(10L,2L);
         findReservationsByUserIdTest();
     }
+
+    @Test
+    void approveReservationTest()
+    {
+        reservationServiceIpml.approveReservation(10L);
+        findReservationsByUserIdTest();
+    }
+
+    @Test
+    void rejectReservationTest()
+    {
+        reservationServiceIpml.rejectReservation(10L,"114514");
+        findReservationsByUserIdTest();
+    }
+
+
 }

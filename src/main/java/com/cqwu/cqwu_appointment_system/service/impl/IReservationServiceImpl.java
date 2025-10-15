@@ -37,7 +37,7 @@ public class IReservationServiceImpl implements IReservationService {
     private VenueMapper venueMapper; // 假设您也有一个VenueMapper
 
     /**
-     *
+     *创建一个新的预约
      * @param reservation 包含 venueId, userId, startTime, endTime, purpose 的预约信息对象
      * @return
      */
@@ -81,6 +81,7 @@ public class IReservationServiceImpl implements IReservationService {
 
     /**
      *
+     * 检查指定时间段内场地是否可用
      * @param venueId 场所ID
      * @param startTime 开始时间
      * @param endTime 结束时间
@@ -102,6 +103,7 @@ public class IReservationServiceImpl implements IReservationService {
 
     /**
      *
+     * 用户取消自己的预约
      * @param reservationId 要取消的预约ID
      * @param userId 操作者用户ID (用于安全校验)
      */
@@ -122,6 +124,7 @@ public class IReservationServiceImpl implements IReservationService {
 
     /**
      *
+     * 根据用户ID分页查询预约记录
      * @param userId 用户ID
      * @param pageable 分页参数 (包含页码, 每页大小, 排序规则)
      * @return
@@ -142,7 +145,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *管理员批准一个待处理的预约
      * @param reservationId 预约ID
      */
     @Override
@@ -156,7 +159,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *管理员拒绝一个待处理的预约
      * @param reservationId 预约ID
      * @param reason 拒绝原因 (可选)
      */
@@ -171,7 +174,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *管理员取消预约
      * @param reservationId 要取消的预约ID
      * @param reason 取消原因
      */
@@ -189,7 +192,7 @@ public class IReservationServiceImpl implements IReservationService {
 //    }
 
     /**
-     *
+     *根据多个条件动态搜索预约记录并分页
      * @param venueId 场所ID (可选, 为null则不作为查询条件)
      * @param userId 用户ID (可选)
      * @param status 预约状态 (可选)
@@ -230,7 +233,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *根据ID查找预约记录
      * @param reservationId 预约ID
      * @return
      */
@@ -241,7 +244,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *根据预约码查找预约记录
      * @param reservationCode 预约码
      * @return
      */
@@ -254,7 +257,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *获取指定场地的即将到来的预约列表
      * @param venueId 场所ID
      * @param limit 返回记录的数量
      * @return
@@ -277,7 +280,7 @@ public class IReservationServiceImpl implements IReservationService {
     // --- 内部辅助方法 ---
 
     /**
-     *
+     *查找并检查预约是否存在
      * @param reservationId
      * @return
      */
@@ -290,7 +293,7 @@ public class IReservationServiceImpl implements IReservationService {
     }
 
     /**
-     *
+     *更新预约的状态
      * @param reservationId
      * @param newStatus
      */
