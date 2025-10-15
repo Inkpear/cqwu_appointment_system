@@ -1,5 +1,8 @@
 package com.cqwu.cqwu_appointment_system.entity;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
 import java.time.LocalDateTime;
 
 public class Reservation {
@@ -298,5 +301,20 @@ public class Reservation {
      */
     public void setReservationCode(String reservationCode) {
         this.reservationCode = reservationCode;
+    }
+
+    @Override
+    public String toString() {
+        return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+                .append("id", getId())
+                .append("venueId", getVenueId())
+                .append("userId", getUserId())
+                .append("startTime", getStartTime())
+                .append("endTime", getEndTime())
+                .append("purpose", getPurpose())
+                .append("status", getStatus())
+                .append("createTime", getCreateTime())
+                .append("reservationCode", getReservationCode())
+                .toString();
     }
 }

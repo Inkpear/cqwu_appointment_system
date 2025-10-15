@@ -1,5 +1,8 @@
 package com.cqwu.cqwu_appointment_system;
 
+import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
+import com.cqwu.cqwu_appointment_system.service.impl.IReservationServiceImpl;
+import jakarta.annotation.Resource;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -67,4 +70,8 @@ class CqwuAppointmentSystemApplicationTests {
 		redisCache.setCacheObject("RedisInsertTest", "insert successful");
 		assertEquals(true, redisCache.expire("RedisInsertTest", 60));
 	}
+
+
+
+
 }
