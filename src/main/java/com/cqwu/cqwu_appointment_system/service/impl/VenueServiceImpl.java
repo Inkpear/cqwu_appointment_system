@@ -1,6 +1,7 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
+import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
@@ -39,57 +40,6 @@ public class VenueServiceImpl implements VenueService {
         // 参数校验
         Assert.notNull(id, "场所ID不能为空");
         return venueMapper.selectByPrimaryKey(id);
-    }
-
-    /**
-     * 根据场所名称查询场所信息
-     *
-     * @param name 场所名字
-     * @return 场所列表
-     */
-    @Override
-    public List<Venue> selectVenueListByName(String name) {
-        VenueExample example = new VenueExample();
-
-        if (StringUtils.hasText(name)) {
-            // 使用Like模糊匹配
-            example.createCriteria().andNameLike("%" + name + "%");
-        }
-
-        return venueMapper.selectByExample(example);
-    }
-
-    /**
-     * 根据场所状态查询场所列表
-     *
-     * @param status 场所状态
-     * @return 场所列表
-     */
-    @Override
-    public List<Venue> selectVenueListByStatus(String status) {
-        VenueExample example = new VenueExample();
-        // 如果传入了有效的 status，则添加查询条件
-        if (StringUtils.hasText(status)) {
-            example.createCriteria().andStatusEqualTo(status);
-        }
-        // 如果 status 为空或 null，则查询所有场所
-        return venueMapper.selectByExample(example);
-    }
-
-    /**
-     * 根据场所位置模糊查询场所列表
-     *
-     * @param location 位置关键字
-     * @return 场所列表
-     */
-    @Override
-    public List<Venue> selectBenueListByLocation(String location) {
-        VenueExample example = new VenueExample();
-        if (StringUtils.hasText(location)) {
-            // 使用 LIKE 进行模糊查询
-            example.createCriteria().andLocationLike("%" + location + "%");
-        }
-        return venueMapper.selectByExample(example);
     }
 
     /**
@@ -141,22 +91,25 @@ public class VenueServiceImpl implements VenueService {
     }
 
     @Override
-    public Page<Venue> searchVenues(String name, String status, String location, int page, int size) {
+    public Page<Venue> searchVenues(VenueQuery query) {
         // 1. 设置分页 (使用 PageHelper 插件，这是 MyBatis 最流行的分页方案)
-        PageHelper.startPage(page + 1, size); // PageHelper 的页码是从 1 开始的
+        PageHelper.startPage(query.getPage() + 1, query.getSize()); // PageHelper 的页码是从 1 开始的
 
         // 2. 动态构建查询条件
         VenueExample example = new VenueExample();
         VenueExample.Criteria criteria = example.createCriteria();
 
-        if (StringUtils.hasText(name)) {
-            criteria.andNameLike("%" + name + "%");
+        if (StringUtils.hasText(query.getName())) {
+            criteria.andNameLike("%" + query.getName() + "%");
         }
-        if (StringUtils.hasText(status)) {
-            criteria.andStatusEqualTo(status);
+        if (StringUtils.hasText(query.getStatus())) {
+            criteria.andStatusEqualTo(query.getStatus());
         }
-        if (StringUtils.hasText(location)) {
-            criteria.andLocationLike("%" + location + "%");
+        if (StringUtils.hasText(query.getLocation())) {
+            criteria.andLocationLike("%" + query.getLocation() + "%");
+        }
+        if (query.getFloor() != null) {
+            criteria.andFloorEqualTo(query.getFloor());
         }
 
         // 3. 执行查询
@@ -165,6 +118,6 @@ public class VenueServiceImpl implements VenueService {
         // 4. 封装分页结果
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
 
-        return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
+        return new PageImpl<>(pageInfo.getList(), PageRequest.of(query.getPage(), query.getSize()), pageInfo.getTotal());
     }
 }
