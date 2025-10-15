@@ -1,5 +1,8 @@
 package com.cqwu.cqwu_appointment_system.entity;
 
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
 import java.time.LocalDateTime;
 
 public class Reservation {
