@@ -67,5 +67,31 @@ public class ReservationServiceImplTest {
         findReservationsByUserIdTest();
     }
 
+    @Test
+    void cancelReservationByAdminTest()
+    {
+        reservationServiceIpml.cancelReservationByAdmin(11L,"114514");
+        findReservationsByUserIdTest();
+    }
+
+    @Test
+    void searchReservationsTest()
+    {
+        Pageable pageable = PageRequest.of(0, 10);
+//        Page<Reservation> page = reservationServiceIpml.searchReservations(null,2L,null,null,pageable);
+        Page<Reservation> page = reservationServiceIpml.searchReservations(1L,null,null,null,pageable);
+
+        System.out.println("总页数: " + page.getTotalPages());
+        System.out.println("总条数: " + page.getTotalElements());
+        System.out.println("当前页内容: " + page.getContent());
+    }
+
+    @Test
+    void findReservationByIdTest()
+    {
+        var tmp = reservationServiceIpml.findReservationById(10L);
+        System.out.println(tmp);
+    }
+
 
 }
