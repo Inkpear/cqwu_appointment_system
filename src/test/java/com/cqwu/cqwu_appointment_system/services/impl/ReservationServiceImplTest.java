@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @SpringBootTest
 public class ReservationServiceImplTest {
@@ -27,8 +28,8 @@ public class ReservationServiceImplTest {
         Reservation reservation = new Reservation();
 
 //        reservation.setId(1L);
-        reservation.setStartTime(LocalDateTime.of(2025, 10, 17, 10, 0)); // 2025-10-16 10:00
-        reservation.setEndTime(LocalDateTime.of(2025, 10, 18, 12, 0));   // 2025-10-16 12:00
+        reservation.setStartTime(LocalDateTime.of(2025, 10, 18, 10, 0)); // 2025-10-16 10:00
+        reservation.setEndTime(LocalDateTime.of(2025, 10, 19, 12, 0));   // 2025-10-16 12:00
         reservation.setVenueId(1L);
         reservation.setUserId(2L);
         reservationServiceIpml.createReservation(reservation);
@@ -93,5 +94,20 @@ public class ReservationServiceImplTest {
         System.out.println(tmp);
     }
 
+    @Test
+    void findReservationByCodeTest()
+    {
+        var tmp = reservationServiceIpml.findReservationByCode("413ce0232a1346ae");
+        System.out.println(tmp);
+    }
 
+    @Test
+    void getUpcomingReservationsTest()
+    {
+        List<Reservation> tmp = reservationServiceIpml.getUpcomingReservations(1L,1);
+        for(Reservation reservation : tmp)
+        {
+            System.out.println(reservation);
+        }
+    }
 }
