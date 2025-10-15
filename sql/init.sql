@@ -14,6 +14,7 @@ CREATE TABLE `venue`  (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `name` VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '场所名称',
   `location` VARCHAR(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '位置',
+  `floor` INT NULL DEFAULT NULL COMMENT '楼层',
   `capacity` INT NULL DEFAULT 0 COMMENT '容量',
   `category_id` BIGINT NULL DEFAULT NULL COMMENT '分类ID, 关联分类表',
   `equipment` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '设备配置 ',
