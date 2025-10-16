@@ -1,5 +1,6 @@
 package com.cqwu.cqwu_appointment_system.controller;
 
+import com.cqwu.cqwu_appointment_system.common.converter.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.entity.Reservation;
 import com.cqwu.cqwu_appointment_system.service.IReservationService;
@@ -67,7 +68,8 @@ public class ReservationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             Pageable pageable) {
         Page<Reservation> reservations = reservationService.searchReservations(venueId, userId, status, date, pageable);
-        return AjaxResult.success(reservations);
+
+        return AjaxResult.success(PageDTO.fromPage(reservations));
     }
 
     /**

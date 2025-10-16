@@ -11,10 +11,13 @@ import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.IReservationService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -30,14 +33,58 @@ import java.util.UUID;
 @Service
 public class IReservationServiceImpl implements IReservationService {
 
+    private static final Logger log = LoggerFactory.getLogger(IReservationServiceImpl.class);
+
+    //将状态定义为常量，避免硬编码字符串
+    private static final String STATUS_PENDING = "pending";
+    private static final String STATUS_CONFIRMED = "confirmed";
+    private static final String STATUS_REJECTED = "rejected";
+    private static final String STATUS_CANCELLED = "cancelled";
+    private static final String STATUS_COMPLETED = "completed";
+
     @Autowired
     private ReservationMapper reservationMapper;
 
     @Autowired
-    private VenueMapper venueMapper; // 假设您也有一个VenueMapper
+    private VenueMapper venueMapper;
+
+
 
     /**
-     *创建一个新的预约
+     * 定时任务：每小时执行一次，用于更新已过期的预约状态。
+     * cron表达式 "0 0 * * * ?" 表示每个整点执行。
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    @Transactional
+    public void updateFinishedReservations() {
+        log.info("开始执行定时任务：更新已完成的预约状态...");
+
+        ReservationExample example = new ReservationExample();
+        example.createCriteria()
+                .andStatusEqualTo(STATUS_CONFIRMED)
+                .andEndTimeLessThan(LocalDateTime.now());
+
+        List<Reservation> finishedReservations = reservationMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(finishedReservations)) {
+            log.info("没有需要更新的已完成预约。");
+            return;
+        }
+
+        List<Long> idsToUpdate = finishedReservations.stream().map(Reservation::getId).toList();
+
+        Reservation updateEntity = new Reservation();
+        updateEntity.setStatus(STATUS_COMPLETED); // 更新为 "completed"
+
+        ReservationExample updateExample = new ReservationExample();
+        updateExample.createCriteria().andIdIn(idsToUpdate);
+
+        int updatedCount = reservationMapper.updateByExampleSelective(updateEntity, updateExample);
+        log.info("定时任务完成：共更新了 {} 条预约记录为 '{}'。", updatedCount, STATUS_COMPLETED);
+    }
+
+    /**
+     *创建一个新的预约,初始状态为“待审批”
      * @param reservation 包含 venueId, userId, startTime, endTime, purpose 的预约信息对象
      * @return
      */
@@ -71,9 +118,9 @@ public class IReservationServiceImpl implements IReservationService {
 
         // 4. 完善预约信息并保存
         reservation.setReservationCode(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        reservation.setStatus("confirmed"); // 默认已确认
-        reservation.setCreateTime(LocalDateTime.now()); // MBG需要手动设置时间
-        int tmp = reservationMapper.insertSelective(reservation);
+        reservation.setStatus(STATUS_PENDING); // 新预约状态为 "pending"
+        reservation.setCreateTime(LocalDateTime.now());
+        reservationMapper.insertSelective(reservation);
 
         return reservation;
     }
@@ -82,6 +129,7 @@ public class IReservationServiceImpl implements IReservationService {
     /**
      *
      * 检查指定时间段内场地是否可用
+     * 只有 'pending' 和 'confirmed' 状态的预约才被认为是占用了时间
      * @param venueId 场所ID
      * @param startTime 开始时间
      * @param endTime 结束时间
@@ -90,13 +138,13 @@ public class IReservationServiceImpl implements IReservationService {
     @Override
     public boolean isVenueAvailable(Long venueId, LocalDateTime startTime, LocalDateTime endTime) {
         ReservationExample example = new ReservationExample();
-        ReservationExample.Criteria criteria = example.createCriteria();
-        criteria.andVenueIdEqualTo(venueId);
-        // 排除已取消和已拒绝的预约
-        criteria.andStatusNotIn(Arrays.asList("cancelled", "rejected"));
-        // 冲突条件: (现有预约的开始时间 < 新预约的结束时间) AND (现有预约的结束时间 > 新预约的开始时间)
-        criteria.andStartTimeLessThan(endTime);
-        criteria.andEndTimeGreaterThan(startTime);
+        example.createCriteria()
+                .andVenueIdEqualTo(venueId)
+                // 【关键修改】只考虑待审批和已确认的预约
+                .andStatusIn(Arrays.asList(STATUS_PENDING, STATUS_CONFIRMED))
+                // 冲突条件: (现有预约的开始时间 < 新预约的结束时间) AND (现有预约的结束时间 > 新预约的开始时间)
+                .andStartTimeLessThan(endTime)
+                .andEndTimeGreaterThan(startTime);
 
         return reservationMapper.countByExample(example) == 0;
     }
@@ -115,11 +163,18 @@ public class IReservationServiceImpl implements IReservationService {
         if (!Objects.equals(reservation.getUserId(), userId)) {
             throw new PermissionDeniedException("您没有权限取消此预约。");
         }
+
+        // 【建议修改】增加状态检查
+        if (!Arrays.asList(STATUS_PENDING, STATUS_CONFIRMED).contains(reservation.getStatus())) {
+            throw new IllegalStateException("该预约当前状态为 '" + reservation.getStatus() + "', 无法取消。");
+        }
+
         if (LocalDateTime.now().isAfter(reservation.getStartTime())) {
             throw new IllegalStateException("预约已经开始或结束，无法取消。");
         }
 
-        updateReservationStatus(reservationId, "cancelled");
+        // 【建议修改】使用常量
+        updateReservationStatus(reservationId, STATUS_CANCELLED);
     }
 
     /**
@@ -152,10 +207,10 @@ public class IReservationServiceImpl implements IReservationService {
     @Transactional
     public void approveReservation(Long reservationId) {
         Reservation reservation = findAndCheckReservation(reservationId);
-        if (!"pending".equalsIgnoreCase(reservation.getStatus())) {
+        if (!STATUS_PENDING.equalsIgnoreCase(reservation.getStatus())) {
             throw new IllegalStateException("该预约当前状态为'" + reservation.getStatus() + "', 无需审批。");
         }
-        updateReservationStatus(reservationId, "confirmed");
+        updateReservationStatus(reservationId, STATUS_CONFIRMED);
     }
 
     /**
@@ -167,10 +222,10 @@ public class IReservationServiceImpl implements IReservationService {
     @Transactional
     public void rejectReservation(Long reservationId, String reason) {
         Reservation reservation = findAndCheckReservation(reservationId);
-        if (!"pending".equalsIgnoreCase(reservation.getStatus())) {
+        if (!STATUS_PENDING.equalsIgnoreCase(reservation.getStatus())) {
             throw new IllegalStateException("该预约当前状态为'" + reservation.getStatus() + "', 无法拒绝。");
         }
-        updateReservationStatus(reservationId, "rejected");
+        updateReservationStatus(reservationId, STATUS_REJECTED);
     }
 
     /**
@@ -182,8 +237,17 @@ public class IReservationServiceImpl implements IReservationService {
     @Override
     @Transactional
     public void cancelReservationByAdmin(Long reservationId, String reason) {
-        findAndCheckReservation(reservationId);
-        updateReservationStatus(reservationId, "cancelled");
+        Reservation reservation = findAndCheckReservation(reservationId);
+
+        // 【建议修改】增加状态检查
+        if (!Arrays.asList(STATUS_PENDING, STATUS_CONFIRMED).contains(reservation.getStatus())) {
+            throw new IllegalStateException("该预约当前状态为 '" + reservation.getStatus() + "', 无法取消。");
+        }
+
+        // (可选) 管理员可以取消已开始的预约，所以这里可以不检查开始时间
+
+        // 【建议修改】使用常量
+        updateReservationStatus(reservationId, STATUS_CANCELLED);
     }
 
 //    @Override
