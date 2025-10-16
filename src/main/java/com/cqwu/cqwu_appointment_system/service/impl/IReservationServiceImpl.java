@@ -11,10 +11,13 @@ import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.IReservationService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -30,11 +33,50 @@ import java.util.UUID;
 @Service
 public class IReservationServiceImpl implements IReservationService {
 
+    private static final Logger log = LoggerFactory.getLogger(IReservationServiceImpl.class);
+
     @Autowired
     private ReservationMapper reservationMapper;
 
     @Autowired
     private VenueMapper venueMapper; // 假设您也有一个VenueMapper
+
+    // ... 其他方法保持不变 ...
+
+    /**
+     * 定时任务：每小时执行一次，用于更新已过期的预约状态。
+     * cron表达式 "0 0 * * * ?" 表示每个整点执行。
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    @Transactional
+    public void updateExpiredReservations() {
+        log.info("开始执行定时任务：更新已过期的预约状态...");
+
+        // 1. 查找所有状态为 'confirmed' 且结束时间早于当前时间的预约
+        ReservationExample example = new ReservationExample();
+        example.createCriteria()
+                .andStatusEqualTo("confirmed")
+                .andEndTimeLessThan(LocalDateTime.now());
+
+        List<Reservation> expiredReservations = reservationMapper.selectByExample(example);
+
+        if (CollectionUtils.isEmpty(expiredReservations)) {
+            log.info("没有需要更新的过期预约。");
+            return;
+        }
+
+        // 2. 批量更新这些预约的状态为 'expired'
+        List<Long> idsToUpdate = expiredReservations.stream().map(Reservation::getId).toList();
+
+        Reservation updateEntity = new Reservation();
+        updateEntity.setStatus("expired");
+
+        ReservationExample updateExample = new ReservationExample();
+        updateExample.createCriteria().andIdIn(idsToUpdate);
+
+        int updatedCount = reservationMapper.updateByExampleSelective(updateEntity, updateExample);
+        log.info("定时任务完成：共更新了 {} 条预约记录为 'expired'。", updatedCount);
+    }
 
     /**
      *创建一个新的预约
@@ -93,7 +135,7 @@ public class IReservationServiceImpl implements IReservationService {
         ReservationExample.Criteria criteria = example.createCriteria();
         criteria.andVenueIdEqualTo(venueId);
         // 排除已取消和已拒绝的预约
-        criteria.andStatusNotIn(Arrays.asList("cancelled", "rejected"));
+        criteria.andStatusNotIn(Arrays.asList("cancelled", "rejected", "expired"));
         // 冲突条件: (现有预约的开始时间 < 新预约的结束时间) AND (现有预约的结束时间 > 新预约的开始时间)
         criteria.andStartTimeLessThan(endTime);
         criteria.andEndTimeGreaterThan(startTime);
