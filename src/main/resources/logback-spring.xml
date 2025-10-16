@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 
+        1. 属性定义
+        使用 <springProperty> 从 application.properties 读取日志路径，
+        如果未配置，则默认为项目根目录下的 "logs" 文件夹。
+    -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+    
+    <!-- 
+        定义通用的日志输出格式
+        %d: 日期时间
+        %thread: 线程名
+        %-5level: 日志级别，左对齐，占5个字符
+        %logger{36}: logger 名称，最长36个字符
+        %msg: 日志消息
+        %n: 换行
+    -->
+	<property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%15.15thread] %-5level %-40.40logger{39} : %msg%n" />
+
+
+    <!-- ===================================================================== -->
+    <!--                            Appender 定义                             -->
+    <!-- ===================================================================== -->
+
+	<!-- Appender 1: 控制台输出 (Console) -->
+	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+		</encoder>
+	</appender>
+	
+	<!-- Appender 2: INFO 级别日志文件 -->
+	<appender name="FILE_INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+	    <file>${LOG_PATH}/sys-info.log</file>
+        <!-- 按天滚动的策略 -->
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- 每天生成的日志文件名格式 -->
+			<fileNamePattern>${LOG_PATH}/sys-info.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<!-- 日志文件保留天数 -->
+			<maxHistory>30</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+		</encoder>
+        <!-- 过滤器：只记录 INFO 级别的日志 -->
+		<filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+	</appender>
+	
+    <!-- Appender 3: ERROR 级别日志文件 -->
+	<appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+	    <file>${LOG_PATH}/sys-error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/sys-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>60</maxHistory> <!-- 错误日志可以保留更长时间 -->
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+	
+    <!-- Appender 4: (可选) 自定义的用户操作日志 -->
+    <appender name="SYS_USER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${LOG_PATH}/sys-user.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/sys-user.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <!-- 用户日志可以采用更简洁的格式 -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+	<logger name="com.cqwu.cqwu_appointment_system" level="INFO" />
+    
+    <!-- 
+        (推荐) 将 MyBatis Mapper 接口的日志级别设为 DEBUG，以在控制台打印执行的 SQL。
+        开发和测试时非常有用，生产环境可以调回 INFO。
+    -->
+    <logger name="com.cqwu.cqwu_appointment_system.mapper" level="DEBUG" />
+	
+    <!-- 减少 Spring 框架自身的日志输出，只显示警告和错误 -->
+	<logger name="org.springframework" level="WARN" />
+    <logger name="org.apache.tomcat" level="WARN" />
+    <logger name="com.zaxxer.hikari" level="WARN" />
+
+
+    <!-- 
+        根 Logger (root) 是所有 Logger 的最终“祖先”。
+        它定义了全局的最低日志级别和默认的 Appender。
+    -->
+	<root level="INFO">
+		<appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE_INFO" />
+        <appender-ref ref="FILE_ERROR" />
+	</root>
+	
+	<!-- 
+        为自定义的 "sys-user" logger 指定 Appender。
+        additivity="false" 阻止日志向上传递给 root，避免重复记录。
+    -->
+    <logger name="sys-user" level="INFO" additivity="false">
+        <appender-ref ref="SYS_USER"/>
+    </logger>
+
+</configuration>
