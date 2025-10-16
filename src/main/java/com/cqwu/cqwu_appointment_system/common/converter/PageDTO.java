@@ -2,11 +2,7 @@ package com.cqwu.cqwu_appointment_system.common.converter;
 
 import java.util.List;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
+@SuppressWarnings("unused")
 public class PageDTO<T> {
     private List<T> content;      // 当前页数据
     private int pageNumber;     // 当前页码 (从 0 开始)
