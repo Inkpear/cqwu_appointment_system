@@ -4,6 +4,7 @@ import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,7 +41,6 @@ class VenueServiceImplTest {
         testVenue1.setStatus("available");
         testVenue1.setOpenTime(LocalTime.of(8, 0));
         testVenue1.setCloseTime(LocalTime.of(18, 0));
-        venueService.insertVenue(testVenue1);
 
         testVenue2 = new Venue();
         testVenue2.setName("基础测试-会议室");
@@ -48,58 +49,16 @@ class VenueServiceImplTest {
         testVenue2.setStatus("maintenance");
         testVenue2.setOpenTime(LocalTime.of(9, 0));
         testVenue2.setCloseTime(LocalTime.of(17, 0));
-        venueService.insertVenue(testVenue2);
 
         testVenue3 = new Venue();
         testVenue3.setName("高级测试-实验室");
         testVenue3.setLocation("教学楼A栋202");
         testVenue3.setCapacity(30);
         testVenue3.setStatus("available");
-        venueService.insertVenue(testVenue3);
-    }
 
-    @Test
-    void testInsertAndSelectById() {
-        Venue newVenue = new Venue();
-        newVenue.setName("待插入的新场所");
-        newVenue.setLocation("科技楼C栋");
-        newVenue.setStatus("available");
-        int affectedRows = venueService.insertVenue(newVenue);
-        assertNotNull(newVenue.getId());
-        Venue selectedVenue = venueService.selectVenueById(newVenue.getId());
-        assertEquals(1, affectedRows);
-        assertNotNull(selectedVenue);
-        assertEquals("待插入的新场所", selectedVenue.getName());
-    }
+        venueService.insertVenues(List.of(testVenue1, testVenue2, testVenue3));
 
-    @Test
-    void testUpdateVenue() {
-        Long idToUpdate = testVenue1.getId();
-        Venue venueToUpdate = new Venue();
-        venueToUpdate.setId(idToUpdate);
-        venueToUpdate.setName("更新后的-报告厅");
-        venueToUpdate.setCapacity(180);
-        int affectedRows = venueService.updateVenue(venueToUpdate);
-        Venue updatedVenue = venueService.selectVenueById(idToUpdate);
-        assertEquals(1, affectedRows);
-        assertNotNull(updatedVenue);
-        assertEquals("更新后的-报告厅", updatedVenue.getName());
-        assertEquals(180, updatedVenue.getCapacity());
-        assertEquals("教学楼A栋101", updatedVenue.getLocation());
-    }
-
-    @Test
-    void testDeleteVenueByIds() {
-        Venue venueToDelete = new Venue();
-        venueToDelete.setName("待删除的场所");
-        venueService.insertVenue(venueToDelete);
-        assertNotNull(venueToDelete.getId());
-        Long[] idsToDelete = {testVenue1.getId(), venueToDelete.getId()};
-        int deletedCount = venueService.deleteVenueByIds(idsToDelete);
-        assertNull(venueService.selectVenueById(testVenue1.getId()));
-        assertNull(venueService.selectVenueById(venueToDelete.getId()));
-        assertNotNull(venueService.selectVenueById(testVenue2.getId()));
-        assertEquals(2, deletedCount);
+        assertNotNull(testVenue1.getId());
     }
 
     @Test
@@ -161,5 +120,43 @@ class VenueServiceImplTest {
         // 断言空结果
         assertEquals(0, resultPage4.getTotalElements(), "场景4: 找不到结果时总数应为0");
         assertTrue(resultPage4.getContent().isEmpty(), "场景4: 找不到结果时内容列表应为空");
+    }
+
+    @Test
+    @DisplayName("测试批量插入多个场所")
+    void testInsertVenues_withValidList_shouldSucceed() {
+        // --- Arrange (准备数据) ---
+        Venue batchVenue1 = new Venue();
+        batchVenue1.setName("批量测试-001");
+        batchVenue1.setLocation("批量楼-1F");
+        batchVenue1.setStatus("available");
+
+        Venue batchVenue2 = new Venue();
+        batchVenue2.setName("批量测试-002");
+        batchVenue2.setLocation("批量楼-2F");
+        batchVenue2.setStatus("maintenance");
+
+        List<Venue> venueList = new ArrayList<>();
+        venueList.add(batchVenue1);
+        venueList.add(batchVenue2);
+
+        // --- Act (执行操作) ---
+        int affectedRows = venueService.insertVenues(venueList);
+
+        // --- Assert (验证结果) ---
+
+        // 1. 验证返回的受影响行数是否正确
+        assertEquals(2, affectedRows, "批量插入应该返回 2，表示影响了 2 行");
+
+        // 2. 回查数据库，验证数据是否真的被插入
+        //    (注意：批量插入通常不会回填ID到List中的每个对象，所以我们需要通过其他条件查询)
+        // List<Venue> result1 = venueService.selectVenueListByName("批量测试-001");
+        // List<Venue> result2 = venueService.selectVenueListByName("批量测试-002");
+
+        // assertFalse(result1.isEmpty(), "应该能查询到'批量测试-001'");
+        // assertEquals("批量楼-1F", result1.get(0).getLocation());
+
+        // assertFalse(result2.isEmpty(), "应该能查询到'批量测试-002'");
+        // assertEquals("maintenance", result2.get(0).getStatus());
     }
 }

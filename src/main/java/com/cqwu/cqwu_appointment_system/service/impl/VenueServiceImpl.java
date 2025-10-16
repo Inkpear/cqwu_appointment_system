@@ -10,6 +10,7 @@ import com.cqwu.cqwu_appointment_system.service.VenueService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,7 +24,7 @@ import java.util.List;
 /**
  * 场所服务实现类
  */
-@Service // 标记这是一个 Spring Service 组件，将其注册到 IoC 容器中
+@Service
 public class VenueServiceImpl implements VenueService {
 
     @Autowired
@@ -49,27 +50,26 @@ public class VenueServiceImpl implements VenueService {
      * @return 影响的行数
      */
     @Override
+    @Transactional
     public int updateVenue(Venue venue) {
         // 关键校验：必须传入包含主键ID的 venue 对象
         Assert.notNull(venue, "场所信息不能为空");
         Assert.notNull(venue.getId(), "更新场所时，场所ID不能为空");
 
-        // 使用 updateByPrimaryKeySelective 只更新非 null 字段，更安全
         return venueMapper.updateByPrimaryKeySelective(venue);
     }
 
-    /**
-     * 插入新的场所信息
-     *
-     * @param venue 场所信息
-     * @return 影响的行数
-     */
     @Override
-    public int insertVenue(Venue venue) {
-        Assert.notNull(venue, "场所信息不能为空");
-        // 插入前，将ID设为null，以确保数据库会使用自增主键
-        venue.setId(null);
-        return venueMapper.insertSelective(venue);
+    @Transactional
+    public int insertVenues(List<Venue> venues) {
+        // 参数校验
+        Assert.notEmpty(venues, "要批量添加的场所列表不能为空");
+
+        for (Venue venue : venues) {
+            venue.setId(null);
+        }
+
+        return venueMapper.insertBatch(venues);
     }
 
     /**
@@ -79,6 +79,7 @@ public class VenueServiceImpl implements VenueService {
      * @return 删除的行数
      */
     @Override
+    @Transactional
     public int deleteVenueByIds(Long[] ids) {
         // 校验传入的数组是否为空或长度为0
         Assert.notEmpty(ids, "要删除的ID列表不能为空");
@@ -118,6 +119,7 @@ public class VenueServiceImpl implements VenueService {
         // 4. 封装分页结果
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
 
-        return new PageImpl<>(pageInfo.getList(), PageRequest.of(query.getPage(), query.getSize()), pageInfo.getTotal());
+        return new PageImpl<>(pageInfo.getList(), PageRequest.of(query.getPage(), query.getSize()),
+                pageInfo.getTotal());
     }
 }

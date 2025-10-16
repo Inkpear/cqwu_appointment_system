@@ -1,5 +1,7 @@
 package com.cqwu.cqwu_appointment_system.service;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
@@ -21,12 +23,12 @@ public interface VenueService {
      */
     public int updateVenue(Venue venue);
 
-    /**
-     * 
-     * @param venue 场所信息
-     * @return 返回Id
+   /**
+     * 批量新增场所
+     * @param venues 场所信息列表
+     * @return 成功插入的行数
      */
-    public int insertVenue(Venue venue);
+    int insertVenues(List<Venue> venues);
 
     /**
      * 

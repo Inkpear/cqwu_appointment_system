@@ -1,17 +1,22 @@
 package com.cqwu.cqwu_appointment_system.common.exception;
 
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
+
+import java.util.Collection;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -40,15 +45,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AjaxResult handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        log.error("请求体为空或JSON格式错误: {}", e.getMessage());
-        return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), "请求体不能为空且必须为有效的JSON格式");
+        log.error("请求体为空或数据格式错误: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), "请求体不能为空或数据格式错误");
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE) // 设置 HTTP 状态码为 415
     public AjaxResult handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException e) {
-        // log.error("不支持的媒体类型: {}", e.getMessage());
-        return AjaxResult.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "不支持的内容类型，请使用 application/json");
+        log.error("不支持的媒体类型: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "不支持的内容类型");
     }
 
     /**
@@ -86,13 +91,31 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理 Spring 6.1+ 引入的 @Valid 校验异常 (HTTP 400)
+     */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public AjaxResult handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+
+        String message = e.getParameterValidationResults().stream()
+                .map(ParameterValidationResult::getResolvableErrors)
+                .flatMap(Collection::stream)
+                .map(error -> error.getDefaultMessage())
+                .findFirst()
+                .orElse("参数校验失败");
+
+        log.warn("方法参数校验失败: {}", message);
+        return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), message);
+    }
+
+    /**
      * 兜底处理所有其他未被捕获的异常
      * 这是防止系统内部错误（如 NullPointerException）直接暴露给前端的最后一道防线
      */
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR) // 设置 HTTP 响应状态码为 500
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR) 
     public AjaxResult handleAllExceptions(Exception e) {
-        log.error("服务器内部发生未知错误: ", e); // 记录完整的异常堆栈信息
-        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器内部错误，请联系管理员");
+        log.error("服务器内部发生未知错误: ", e); 
+        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "未知的操作！");
     }
 }
