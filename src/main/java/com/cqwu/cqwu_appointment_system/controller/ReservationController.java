@@ -4,17 +4,13 @@ import com.cqwu.cqwu_appointment_system.common.converter.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.entity.Reservation;
 import com.cqwu.cqwu_appointment_system.service.IReservationService;
-//import com.cqwu.cqwu_appointment_system.vo.AjaxResult;
-//import com.cqwu.cqwu_appointment_system.common.AjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 /**
  * @author Lyuih
@@ -29,6 +25,7 @@ public class ReservationController {
 
     /**
      * 创建一个新的预约
+     * 
      * @param reservation 预约信息，从请求体中获取
      * @return 操作结果
      */
@@ -42,6 +39,7 @@ public class ReservationController {
 
     /**
      * 根据ID查询预约详情
+     * 
      * @param id 预约ID
      * @return 预约详情
      */
@@ -53,10 +51,11 @@ public class ReservationController {
 
     /**
      * 动态条件搜索预约
-     * @param venueId 场地ID (可选)
-     * @param userId 用户ID (可选)
-     * @param status 状态 (可选)
-     * @param date 日期 (可选)
+     * 
+     * @param venueId  场地ID (可选)
+     * @param userId   用户ID (可选)
+     * @param status   状态 (可选)
+     * @param date     日期 (可选)
      * @param pageable 分页参数
      * @return 预约分页列表
      */
@@ -74,6 +73,7 @@ public class ReservationController {
 
     /**
      * 用户取消自己的预约
+     * 
      * @param id 预约ID
      * @return 操作结果
      */
@@ -87,6 +87,7 @@ public class ReservationController {
 
     /**
      * 管理员批准预约
+     * 
      * @param id 预约ID
      * @return 操作结果
      */
@@ -99,7 +100,8 @@ public class ReservationController {
 
     /**
      * 管理员拒绝预约
-     * @param id 预约ID
+     * 
+     * @param id     预约ID
      * @param reason 拒绝原因
      * @return 操作结果
      */
@@ -112,7 +114,8 @@ public class ReservationController {
 
     /**
      * 管理员取消预约
-     * @param id 预约ID
+     * 
+     * @param id     预约ID
      * @param reason 取消原因
      * @return 操作结果
      */

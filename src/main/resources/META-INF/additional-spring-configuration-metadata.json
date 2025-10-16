@@ -1,0 +1,22 @@
+{"properties": [
+  {
+    "name": "jwt.access-token-expire-time",
+    "type": "java.lang.String",
+    "description": "访问令牌有效期(分钟)"
+  },
+  {
+    "name": "jwt.secret",
+    "type": "java.lang.String",
+    "description": "jwt密钥"
+  },
+  {
+    "name": "jwt.refresh-token-expire-time",
+    "type": "java.lang.String",
+    "description": "刷新令牌有效期(分钟)"
+  },
+  {
+    "name": "jwt.header",
+    "type": "java.lang.String",
+    "description": "Token Header"
+  }
+]}

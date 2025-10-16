@@ -14,7 +14,7 @@ public interface VenueService {
      * @param name 场所Id
      * @return 场所信息
      */
-    public Venue selectVenueById(Long id); 
+    public Venue selectVenueById(Long id);
 
     /**
      * 
@@ -23,8 +23,9 @@ public interface VenueService {
      */
     public int updateVenue(Venue venue);
 
-   /**
+    /**
      * 批量新增场所
+     * 
      * @param venues 场所信息列表
      * @return 成功插入的行数
      */
@@ -37,9 +38,9 @@ public interface VenueService {
      */
     public int deleteVenueByIds(Long[] ids);
 
-
-     /**
+    /**
      * 分页并根据多个可选条件搜索场所
+     * 
      * @return 分页后的场所数据
      */
     Page<Venue> searchVenues(VenueQuery query);

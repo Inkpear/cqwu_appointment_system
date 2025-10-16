@@ -173,7 +173,7 @@ public class IReservationServiceImpl implements IReservationService {
             throw new IllegalStateException("预约已经开始或结束，无法取消。");
         }
 
-        // 【建议修改】使用常量
+
         updateReservationStatus(reservationId, STATUS_CANCELLED);
     }
 
@@ -340,8 +340,6 @@ public class IReservationServiceImpl implements IReservationService {
 
         return reservationMapper.selectByExample(example);
     }
-
-    // --- 内部辅助方法 ---
 
     /**
      *查找并检查预约是否存在
