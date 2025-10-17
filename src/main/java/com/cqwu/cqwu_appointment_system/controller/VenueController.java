@@ -59,7 +59,7 @@ public class VenueController {
      * @Valid 校验失败由 GlobalExceptionHandler 统一处理。
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
     public ResponseEntity<AjaxResult> createVenues(@RequestBody List<@Valid Venue> venues) {
         log.info("开始批量创建场所, 数量: {}", venues != null ? venues.size() : 0);
         if (venues == null || venues.isEmpty()) {
@@ -84,7 +84,7 @@ public class VenueController {
      * 优化了“先查后改”模式，现在更高效。
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
     public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id, @RequestBody @Valid Venue venue) {
         log.info("开始更新ID为 '{}' 的场所信息...", id);
         venue.setId(id);
@@ -110,7 +110,7 @@ public class VenueController {
      * 根据ID批量删除场所
      */
     @DeleteMapping("/{ids}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
     public ResponseEntity<AjaxResult> deleteVenues(@PathVariable Long[] ids) {
         log.info("开始删除场所, IDs: {}", Arrays.toString(ids));
         if (ids == null || ids.length == 0) {
