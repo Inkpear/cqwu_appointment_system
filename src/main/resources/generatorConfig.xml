@@ -34,12 +34,12 @@
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table> -->
 
-        <!-- <table tableName="reservation" domainObjectName="Reservation">
+        <table tableName="reservation" domainObjectName="Reservation">
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
-        </table> -->
-
-        <table tableName="user" domainObjectName="User">
         </table>
+
+        <!-- <table tableName="user" domainObjectName="User">
+        </table> -->
 
         <!-- <table tableName="%"/> -->
     </context>

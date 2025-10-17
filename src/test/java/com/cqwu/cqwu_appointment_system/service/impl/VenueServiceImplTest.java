@@ -147,16 +147,21 @@ class VenueServiceImplTest {
 
         // 1. 验证返回的受影响行数是否正确
         assertEquals(2, affectedRows, "批量插入应该返回 2，表示影响了 2 行");
+        VenueQuery query1 = new VenueQuery();
+        query1.setName("批量测试-001");
+        query1.setPage(0);
+        query1.setSize(10);
+        VenueQuery query2 = new VenueQuery();
+        query2.setName("批量测试-002");
+        query2.setPage(0);
+        query2.setSize(10);
+        List<Venue> result1 = venueService.searchVenues(query1).getContent();
+        List<Venue> result2 = venueService.searchVenues(query2).getContent();
 
-        // 2. 回查数据库，验证数据是否真的被插入
-        //    (注意：批量插入通常不会回填ID到List中的每个对象，所以我们需要通过其他条件查询)
-        // List<Venue> result1 = venueService.selectVenueListByName("批量测试-001");
-        // List<Venue> result2 = venueService.selectVenueListByName("批量测试-002");
+        assertFalse(result1.isEmpty(), "应该能查询到'批量测试-001'");
+        assertEquals("批量楼-1F", result1.get(0).getLocation());
 
-        // assertFalse(result1.isEmpty(), "应该能查询到'批量测试-001'");
-        // assertEquals("批量楼-1F", result1.get(0).getLocation());
-
-        // assertFalse(result2.isEmpty(), "应该能查询到'批量测试-002'");
-        // assertEquals("maintenance", result2.get(0).getStatus());
+        assertFalse(result2.isEmpty(), "应该能查询到'批量测试-002'");
+        assertEquals("maintenance", result2.get(0).getStatus());
     }
 }

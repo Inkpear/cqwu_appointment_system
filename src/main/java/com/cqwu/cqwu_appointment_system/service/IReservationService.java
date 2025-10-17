@@ -56,7 +56,7 @@ public interface IReservationService {
      * @throws PermissionDeniedException 如果用户试图取消不属于自己的预约
      * @throws IllegalStateException 如果预约状态不允许取消
      */
-    void cancelReservationByUser(Long reservationId, Long userId);
+    void cancelReservationByUser(Long reservationId, String userId);
 
     /**
      * 根据用户ID分页查询其所有预约记录
@@ -65,7 +65,7 @@ public interface IReservationService {
      * @param pageable 分页参数 (包含页码, 每页大小, 排序规则)
      * @return 预约记录的分页结果
      */
-    Page<Reservation> findReservationsByUserId(Long userId, Pageable pageable);
+    Page<Reservation> findReservationsByUserId(String userId, Pageable pageable);
 
 
     // --- 管理员侧功能 ---
@@ -106,12 +106,12 @@ public interface IReservationService {
      * @param pageable 分页参数
      * @return 符合条件的预约记录分页结果
      */
-//    Page<Reservation> searchReservations(Long venueId, Long userId, String status, LocalDateTime date, Pageable pageable);
+//    Page<Reservation> searchReservations(Long venueId, String userId, String status, LocalDateTime date, Pageable pageable);
 
 
     // ---通用查询功能 ---
 
-    Page<Reservation> searchReservations(Long venueId, Long userId, String status, LocalDate date, Pageable pageable);
+    Page<Reservation> searchReservations(Long venueId, String userId, String status, LocalDate date, Pageable pageable);
 
     /**
      * 根据ID查询预约详情

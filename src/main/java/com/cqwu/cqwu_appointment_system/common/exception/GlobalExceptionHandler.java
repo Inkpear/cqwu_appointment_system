@@ -6,9 +6,11 @@ import java.util.Collection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -22,20 +24,18 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 /**
  * 全局异常处理器
  */
-@RestControllerAdvice // 声明这是一个用于 @RestController 的全局增强组件
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /**
-     * 处理参数校验异常 (IllegalArgumentException)
-     * 当 Service 层的 Assert.notNull() 等断言失败时，会抛出此异常
+     * 处理业务断言等原因导致的参数错误 (IllegalArgumentException)
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST) // 设置 HTTP 响应状态码为 400
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AjaxResult handleIllegalArgumentException(IllegalArgumentException e) {
-        log.error("参数校验失败: {}", e.getMessage());
-        // 返回一个包含具体错误信息的 AjaxResult 对象
+        log.warn("非法参数: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), e.getMessage());
     }
 
@@ -45,26 +45,28 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AjaxResult handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        log.error("请求体为空或数据格式错误: {}", e.getMessage());
+        log.warn("请求体为空或数据格式错误: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), "请求体不能为空或数据格式错误");
     }
 
+    /**
+     * 处理不支持的媒体类型异常 (Content-Type)
+     */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE) // 设置 HTTP 状态码为 415
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     public AjaxResult handleHttpMediaTypeNotSupportedException(HttpMediaTypeNotSupportedException e) {
-        log.error("不支持的媒体类型: {}", e.getMessage());
+        log.warn("不支持的媒体类型: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "不支持的内容类型");
     }
 
     /**
-     * 处理 @Valid 注解校验失败的异常
+     * 处理 @Valid 注解校验失败的异常 (RequestBody)
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AjaxResult handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        // 从异常中获取第一个校验失败的错误信息
         String message = e.getBindingResult().getAllErrors().get(0).getDefaultMessage();
-        log.error("数据校验失败: {}", message);
+        log.warn("数据校验失败: {}", message);
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), message);
     }
 
@@ -72,15 +74,14 @@ public class GlobalExceptionHandler {
      * 处理请求方法不支持的异常
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED) // 设置 HTTP 状态码为 405
+    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public AjaxResult handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
-        log.error("请求方法不支持: {}", e.getMessage());
+        log.warn("请求方法不支持: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.METHOD_NOT_ALLOWED.value(), "不支持的请求方法 '" + e.getMethod() + "'");
     }
 
     /**
-     * 处理请求路径未找到的异常 (HTTP 404)
-     * 当 Spring MVC 找不到任何可以处理请求的 Controller 方法时触发
+     * 处理请求路径未找到的异常 (404 Not Found)
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<AjaxResult> handleNoResourceFoundException(NoResourceFoundException e) {
@@ -91,12 +92,11 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理 Spring 6.1+ 引入的 @Valid 校验异常 (HTTP 400)
+     * 处理 Spring 6.1+ 引入的方法参数 @Valid 校验异常
      */
     @ExceptionHandler(HandlerMethodValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public AjaxResult handleHandlerMethodValidationException(HandlerMethodValidationException e) {
-
         String message = e.getParameterValidationResults().stream()
                 .map(ParameterValidationResult::getResolvableErrors)
                 .flatMap(Collection::stream)
@@ -109,13 +109,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 兜底处理所有其他未被捕获的异常
-     * 这是防止系统内部错误（如 NullPointerException）直接暴露给前端的最后一道防线
+     * 处理权限不足异常 (403 Forbidden)
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public AjaxResult handleAccessDeniedException(AccessDeniedException e) {
+        log.warn("权限不足: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.FORBIDDEN.value(), "对不起，您没有权限访问此资源");
+    }
+
+    /**
+     * 处理数据访问超时异常 (例如 Redis 或数据库连接超时)
+     */
+    @ExceptionHandler(QueryTimeoutException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public AjaxResult handleQueryTimeoutException(QueryTimeoutException e) {
+        log.error("数据访问超时，可能是数据库或缓存服务（如Redis）响应缓慢: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.SERVICE_UNAVAILABLE.value(), "服务暂时不可用，请稍后重试");
+    }
+
+    /**
+     * 兜底处理所有其他未被捕获的服务器内部异常 (500 Internal Server Error)
      */
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR) 
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public AjaxResult handleAllExceptions(Exception e) {
-        log.error("服务器内部发生未知错误: ", e); 
-        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "未知的操作！");
+        log.error("服务器内部发生未知错误: ", e);
+        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器繁忙，请稍后重试");
     }
 }

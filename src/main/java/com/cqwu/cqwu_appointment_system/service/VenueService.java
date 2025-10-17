@@ -29,7 +29,7 @@ public interface VenueService {
      * @param venues 场所信息列表
      * @return 成功插入的行数
      */
-    int insertVenues(List<Venue> venues);
+    public int insertVenues(List<Venue> venues);
 
     /**
      * 
@@ -43,5 +43,5 @@ public interface VenueService {
      * 
      * @return 分页后的场所数据
      */
-    Page<Venue> searchVenues(VenueQuery query);
+    public Page<Venue> searchVenues(VenueQuery query);
 }

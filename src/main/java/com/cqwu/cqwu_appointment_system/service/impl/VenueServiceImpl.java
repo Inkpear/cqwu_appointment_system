@@ -1,5 +1,6 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
+import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
@@ -9,6 +10,8 @@ import com.cqwu.cqwu_appointment_system.service.VenueService;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,14 +24,12 @@ import org.springframework.util.Assert;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * 场所服务实现类
- */
 @Service
+@Slf4j
 public class VenueServiceImpl implements VenueService {
 
     @Autowired
-    private VenueMapper venueMapper; // 注入由 MyBatis 生成的 Mapper
+    private VenueMapper venueMapper;
 
     /**
      * 根据主键ID查询场所信息
@@ -38,9 +39,16 @@ public class VenueServiceImpl implements VenueService {
      */
     @Override
     public Venue selectVenueById(Long id) {
+        log.info("开始根据ID查询场所信息, ID: {}", id);
         // 参数校验
         Assert.notNull(id, "场所ID不能为空");
-        return venueMapper.selectByPrimaryKey(id);
+        Venue venue = venueMapper.selectByPrimaryKey(id);
+        if (venue != null) {
+            log.info("成功查询到场所信息, ID: {}", id);
+        } else {
+            log.warn("未查询到ID为 {} 的场所信息", id);
+        }
+        return venue;
     }
 
     /**
@@ -52,24 +60,38 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int updateVenue(Venue venue) {
-        // 关键校验：必须传入包含主键ID的 venue 对象
+        log.info("开始更新场所信息, Venue ID: {}", venue.getId());
         Assert.notNull(venue, "场所信息不能为空");
         Assert.notNull(venue.getId(), "更新场所时，场所ID不能为空");
 
-        return venueMapper.updateByPrimaryKeySelective(venue);
+        int result = venueMapper.updateByPrimaryKeySelective(venue);
+        if (result > 0) {
+            log.info("成功更新场所信息, Venue ID: {}", venue.getId());
+        } else {
+            log.error("更新场所信息失败, Venue ID: {}", venue.getId());
+        }
+        return result;
     }
 
+    /**
+     * 批量插入场所
+     *
+     * @param venues 场所列表
+     * @return 插入的行数
+     */
     @Override
     @Transactional
     public int insertVenues(List<Venue> venues) {
-        // 参数校验
+        log.info("开始批量插入场所, 数量: {}", venues.size());
         Assert.notEmpty(venues, "要批量添加的场所列表不能为空");
 
         for (Venue venue : venues) {
             venue.setId(null);
         }
 
-        return venueMapper.insertBatch(venues);
+        int result = venueMapper.insertBatch(venues);
+        log.info("成功批量插入 {} 条场所信息", result);
+        return result;
     }
 
     /**
@@ -81,22 +103,36 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int deleteVenueByIds(Long[] ids) {
-        // 校验传入的数组是否为空或长度为0
+        log.info("开始根据ID列表批量删除场所, IDs: {}", Arrays.toString(ids));
         Assert.notEmpty(ids, "要删除的ID列表不能为空");
 
         VenueExample example = new VenueExample();
-        // andIdIn() 方法需要一个 List<Long> 类型的参数
         example.createCriteria().andIdIn(Arrays.asList(ids));
 
-        return venueMapper.deleteByExample(example);
+        int result = venueMapper.deleteByExample(example);
+        if (result > 0) {
+            log.info("成功删除 {} 条场所信息, IDs: {}", result, Arrays.toString(ids));
+        } else {
+            log.warn("没有删除任何场所信息, 可能ID列表匹配不到数据, IDs: {}", Arrays.toString(ids));
+        }
+        return result;
     }
 
+    /**
+     * 根据条件分页查询场所
+     *
+     * @param query 查询条件
+     * @return 分页后的场所列表
+     */
     @Override
     public Page<Venue> searchVenues(VenueQuery query) {
-        // 1. 设置分页 (使用 PageHelper 插件，这是 MyBatis 最流行的分页方案)
-        PageHelper.startPage(query.getPage() + 1, query.getSize()); // PageHelper 的页码是从 1 开始的
+        log.info("开始根据条件分页查询场所, 查询参数: {}", query);
 
-        // 2. 动态构建查询条件
+        Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
+        Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
+
+        PageHelper.startPage(page + 1, size);
+
         VenueExample example = new VenueExample();
         VenueExample.Criteria criteria = example.createCriteria();
 
@@ -113,13 +149,10 @@ public class VenueServiceImpl implements VenueService {
             criteria.andFloorEqualTo(query.getFloor());
         }
 
-        // 3. 执行查询
         List<Venue> venues = venueMapper.selectByExample(example);
-
-        // 4. 封装分页结果
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
 
-        return new PageImpl<>(pageInfo.getList(), PageRequest.of(query.getPage(), query.getSize()),
-                pageInfo.getTotal());
+        log.info("查询完成, 共找到 {} 条数据", pageInfo.getTotal());
+        return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
     }
 }

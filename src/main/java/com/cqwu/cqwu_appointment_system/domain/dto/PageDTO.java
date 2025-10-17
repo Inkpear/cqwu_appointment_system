@@ -1,4 +1,4 @@
-package com.cqwu.cqwu_appointment_system.common.converter;
+package com.cqwu.cqwu_appointment_system.domain.dto;
 
 import java.util.List;
 

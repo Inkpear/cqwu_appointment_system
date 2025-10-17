@@ -2,71 +2,132 @@ package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
-import com.cqwu.cqwu_appointment_system.common.converter.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
+import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/venues")
+@Slf4j
 public class VenueController {
 
     @Autowired
     private VenueService venueService;
 
-    @GetMapping("/search")
-    public AjaxResult searchVenues(VenueQuery query) {
-        if (query.getPage() == null) {
-            query.setPage(Constants.DEFAULT_PAGE);
-        }
-        if (query.getSize() == null) {
-            query.setSize(Constants.DEFAULT_PAGE_SIZE);
-        }
+    /**
+     * 分页搜索场所信息
+     */
+    @GetMapping
+    public ResponseEntity<AjaxResult> searchVenues(VenueQuery query) {
+        log.info("开始搜索场所, 查询参数: {}", query);
+
         PageDTO<Venue> venuePage = PageDTO.fromPage(venueService.searchVenues(query));
 
-        return AjaxResult.success(Constants.QUERY_SUCCESS, venuePage);
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venuePage));
     }
 
+    /**
+     * 根据ID获取单个场所信息
+     */
     @GetMapping("/{id}")
-    public AjaxResult getVenueById(@PathVariable Long id) {
+    public ResponseEntity<AjaxResult> getVenueById(@PathVariable Long id) {
+        log.info("开始查询ID为 '{}' 的场所信息...", id);
         Venue venue = venueService.selectVenueById(id);
-        return venue != null ? AjaxResult.success(Constants.QUERY_SUCCESS, venue)
-                : AjaxResult.error(HttpStatus.NOT_FOUND, Constants.QUERY_NOT_FOUND);
+        if (venue != null) {
+            return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venue));
+        } else {
+            log.warn("未找到ID为 '{}' 的场所", id);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.QUERY_NOT_FOUND));
+        }
     }
 
+    /**
+     * 批量创建场所
+     * 
+     * @Valid 校验失败由 GlobalExceptionHandler 统一处理。
+     */
     @PostMapping
-    public AjaxResult createVenues(@RequestBody List<@Valid Venue> venues) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AjaxResult> createVenues(@RequestBody List<@Valid Venue> venues) {
+        log.info("开始批量创建场所, 数量: {}", venues != null ? venues.size() : 0);
         if (venues == null || venues.isEmpty()) {
-            return AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_IS_EMPTY);
+            log.warn("创建场所失败：请求体为空");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_IS_EMPTY));
         }
+
         int successCount = venueService.insertVenues(venues);
-        return successCount > 0 ? new AjaxResult(HttpStatus.CREATED, String.format("成功添加 %d 个场所", successCount), venues)
-                : AjaxResult.error(HttpStatus.ERROR, Constants.BATCH_CREATE_FAIL);
+        if (successCount > 0) {
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new AjaxResult(HttpStatus.CREATED, String.format("成功添加 %d 个场所", successCount), venues));
+        } else {
+            log.warn("批量创建场所操作未影响任何行，可能是数据重复或其他业务约束导致");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.BATCH_CREATE_FAIL));
+        }
     }
 
+    /**
+     * 更新指定ID的场所信息
+     * 优化了“先查后改”模式，现在更高效。
+     */
     @PutMapping("/{id}")
-    public AjaxResult updateVenue(@PathVariable Long id, @RequestBody Venue venue) {
-        if (venueService.selectVenueById(id) == null) {
-            return AjaxResult.error(HttpStatus.NOT_FOUND, Constants.UPDATE_FAIL);
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id, @RequestBody @Valid Venue venue) {
+        log.info("开始更新ID为 '{}' 的场所信息...", id);
         venue.setId(id);
+
         int result = venueService.updateVenue(venue);
-        return result > 0 ? AjaxResult.success(Constants.UPDATE_SUCCESS)
-                : AjaxResult.success(Constants.DATA_NOT_CHANGED);
+
+        if (result > 0) {
+            log.info("成功更新ID为 '{}' 的场所", id);
+            return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
+        } else {
+            if (venueService.selectVenueById(id) == null) {
+                log.warn("更新失败: 未找到ID为 '{}' 的场所", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.UPDATE_FAIL_NOT_FOUND));
+            } else {
+                log.info("ID为 '{}' 的场所信息未发生变化", id);
+                return ResponseEntity.ok(AjaxResult.success(Constants.DATA_NOT_CHANGED));
+            }
+        }
     }
 
+    /**
+     * 根据ID批量删除场所
+     */
     @DeleteMapping("/{ids}")
-    public AjaxResult deleteVenues(@PathVariable Long[] ids) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AjaxResult> deleteVenues(@PathVariable Long[] ids) {
+        log.info("开始删除场所, IDs: {}", Arrays.toString(ids));
         if (ids == null || ids.length == 0) {
-            return AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_ID_IS_EMPTY);
+            log.warn("删除场所失败：ID列表为空");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_ID_IS_EMPTY));
         }
+
         int result = venueService.deleteVenueByIds(ids);
-        return result > 0 ? AjaxResult.success(String.format("成功删除 %d 条记录", result))
-                : AjaxResult.error(HttpStatus.NOT_FOUND, "没有找到与提供ID匹配的记录进行删除");
+
+        if (result > 0) {
+            log.info("成功删除 {} 条场所记录", result);
+            return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 条记录", result)));
+        } else {
+            log.warn("删除操作未影响任何记录, 可能ID '{}' 对应的资源不存在", Arrays.toString(ids));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.DELETE_FAIL_NOT_FOUND));
+        }
     }
 }
