@@ -1,7 +1,5 @@
 package com.cqwu.cqwu_appointment_system.entity;
 
-import java.time.LocalTime;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -53,18 +51,6 @@ public class Venue {
      */
     @Size(max = 20, message = "状态长度不能超过20个字符")
     private String status;
-
-    /**
-     * 开放开始时间
-     * SQL约束: TIME, NULL
-     */
-    private LocalTime openTime;
-
-    /**
-     * 开放结束时间
-     * SQL约束: TIME, NULL
-     */
-    private LocalTime closeTime;
 
     /**
      * 设备配置

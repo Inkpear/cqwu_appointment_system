@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,16 +38,14 @@ class VenueServiceImplTest {
         testVenue1.setLocation("教学楼A栋101");
         testVenue1.setCapacity(150);
         testVenue1.setStatus("available");
-        testVenue1.setOpenTime(LocalTime.of(8, 0));
-        testVenue1.setCloseTime(LocalTime.of(18, 0));
+
 
         testVenue2 = new Venue();
         testVenue2.setName("基础测试-会议室");
         testVenue2.setLocation("行政楼B栋303");
         testVenue2.setCapacity(50);
         testVenue2.setStatus("maintenance");
-        testVenue2.setOpenTime(LocalTime.of(9, 0));
-        testVenue2.setCloseTime(LocalTime.of(17, 0));
+
 
         testVenue3 = new Venue();
         testVenue3.setName("高级测试-实验室");
