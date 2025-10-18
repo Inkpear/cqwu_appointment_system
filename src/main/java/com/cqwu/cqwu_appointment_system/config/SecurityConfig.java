@@ -4,6 +4,7 @@ import com.cqwu.cqwu_appointment_system.security.JwtAuthenticationTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -12,45 +13,65 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // 启用 @PreAuthorize 等方法级安全注解
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
 
-    /**
-     * 配置安全过滤链
-     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 1. 禁用 CSRF，因为我们使用 JWT，是无状态的
+            // 1. 配置 CORS
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            
+            // 2. 【核心】禁用 CSRF 保护，因为我们不再依赖 Cookie 进行认证
             .csrf(csrf -> csrf.disable())
-            // 2. 设置 Session 管理策略为无状态 (STATELESS)
+            
+            // 3. 保持 Session 管理策略为无状态
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 3. 配置请求授权规则
+            
+            // 4. 配置请求授权规则
             .authorizeHttpRequests(auth -> auth
-                // 允许匿名访问登录和刷新接口
+                // 放行 OPTIONS 预检请求 (这是一个好习惯，即使CORS配置简单也建议保留)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                // 明确放行认证相关的所有接口
                 .requestMatchers("/api/auth/**").permitAll()
-                // (可选) 允许访问 Swagger 或其他静态资源
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // 除了上述路径，所有其他请求都需要认证
+                
+                // 其他所有请求都需要认证
                 .anyRequest().authenticated()
             )
-            // 4. 将我们的 JWT 过滤器添加到 Spring Security 的过滤器链中
-            // 在 UsernamePasswordAuthenticationFilter 之前执行
+            
+            // 5. 添加我们的 JWT 过滤器
             .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    /**
-     * 暴露 AuthenticationManager Bean，用于登录认证
-     * Spring Security 6.x 的标准做法
-     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // 允许的前端来源 (生产环境请务必替换为您的前端域名)
+        configuration.setAllowedOrigins(Arrays.asList("github")); 
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*")); 
+        // 在 localStorage 模式下，allowCredentials 不是必须的了
+        // configuration.setAllowCredentials(true); 
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
