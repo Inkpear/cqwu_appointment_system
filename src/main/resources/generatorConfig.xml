@@ -30,13 +30,21 @@
 
         <!-- 要生成代码的表 -->
         <!-- tableName: 数据库表名; domainObjectName: 生成的实体类名 -->
-        <!-- <table tableName="venue" domainObjectName="Venue">
-            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
-        </table> -->
-
-        <table tableName="reservation" domainObjectName="Reservation">
+        <table tableName="venue" domainObjectName="Venue">
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table>
+
+        <table tableName="venue_category" domainObjectName="VenueCategory">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table>
+
+        <table tableName="time_blocks" domainObjectName="TimeBlock">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table>
+
+        <!-- <table tableName="reservation" domainObjectName="Reservation">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table> -->
 
         <!-- <table tableName="user" domainObjectName="User">
         </table> -->

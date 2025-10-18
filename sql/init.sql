@@ -1,11 +1,15 @@
 -- DROP DATABASE IF EXISTS cqwu;
 -- CREATE DATABASE cqwu CHARACTER set utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE cqwu
+
 DROP TABLE IF EXISTS `venue`;
 
 DROP TABLE IF EXISTS `reservation`;
 
 DROP TABLE IF EXISTS `user`;
+
+DROP TABLE IF EXISTS `category_id`;
 
 -- ----------------------------
 -- Table structure for venue
@@ -13,29 +17,52 @@ DROP TABLE IF EXISTS `user`;
 CREATE TABLE
   `venue` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `name` VARCHAR(100) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '场所名称',
-      `location` VARCHAR(200) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '位置',
-      `floor` INT NULL DEFAULT NULL COMMENT '楼层',
-      `capacity` INT NULL DEFAULT 0 COMMENT '容量',
-      `category_id` BIGINT NULL DEFAULT NULL COMMENT '分类ID, 关联分类表',
-      `equipment` TEXT CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '设备配置 ',
-      `status` VARCHAR(20) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'available' COMMENT '状态 ',
-      `open_time` TIME NULL DEFAULT NULL COMMENT '开放开始时间',
-      `close_time` TIME NULL DEFAULT NULL COMMENT '开放结束时间',
-      PRIMARY KEY (`id`) USING BTREE,
-      INDEX `idx_category_id` (`category_id`) USING BTREE,
-      INDEX `idx_status` (`status`) USING BTREE
+    `name` VARCHAR(100) NOT NULL COMMENT '场所名称',
+    `location` VARCHAR(200) NULL DEFAULT NULL COMMENT '位置',
+    `floor` INT NULL DEFAULT NULL COMMENT '楼层',
+    `capacity` INT NULL DEFAULT 0 COMMENT '容量',
+    `category_id` BIGINT NULL DEFAULT NULL COMMENT '分类ID, 关联 venue_category 表',
+    `equipment` TEXT NULL COMMENT '设备配置',
+    `status` VARCHAR(20) NULL DEFAULT 'available' COMMENT '状态 (e.g., available, unavailable, under_maintenance)',
+    PRIMARY KEY (`id`),
+    INDEX `idx_category_id` (`category_id`),
+    INDEX `idx_status` (`status`)
   ) ENGINE = InnoDB CHARACTER
 SET
-  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所信息表' ROW_FORMAT = Dynamic;
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所信息表';
+
+-- ----------------------------
+-- Table structure for venue_category
+-- ----------------------------
+CREATE TABLE
+  `venue_category` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `name` VARCHAR(50) NOT NULL COMMENT '分类名称 (e.g., 普通教室, 会议室, 实验室)',
+    `usage_rules` TEXT NULL COMMENT '使用规则或策略描述',
+    PRIMARY KEY (`id`)
+  ) ENGINE = InnoDB CHARACTER
+SET
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所分类表';
+
+-- ----------------------------
+-- Table structure for time_blocks
+-- ----------------------------
+CREATE TABLE
+  `time_blocks` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `venue_id` BIGINT NOT NULL COMMENT '场所ID',
+    `start_datetime` DATETIME NOT NULL COMMENT '占用开始时间',
+    `end_datetime` DATETIME NOT NULL COMMENT '占用结束时间',
+    `title` VARCHAR(255) NOT NULL COMMENT '占用事件的标题 (e.g., 高等数学, 学生活动预约, 管道维修)',
+    `block_type` VARCHAR(50) NOT NULL COMMENT '占用类型 (COURSE, APPOINTMENT, MAINTENANCE)',
+    `creator_user_id` VARCHAR(20) NULL COMMENT '创建者用户ID (学号/工号)。如果为NULL，则代表系统级占用',
+    `source_system` VARCHAR(50) NULL COMMENT '数据来源系统 (e.g., JIAOWU, SELF_SYSTEM)',
+    `source_event_id` VARCHAR(100) NULL COMMENT '在源系统中的事件ID',
+    PRIMARY KEY (`id`),
+    INDEX `idx_venue_datetime` (`venue_id`, `start_datetime`, `end_datetime`)
+  ) ENGINE = InnoDB CHARACTER
+SET
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所时间占用表';
 
 -- ----------------------------
 -- Table structure for reservation
@@ -68,6 +95,9 @@ CREATE TABLE
 SET
   = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预约记录表' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for user
+-- ----------------------------
 CREATE TABLE
   `user` (
     `id` VARCHAR(20) NOT NULL COMMENT '主键ID, 存储学号或工号',
