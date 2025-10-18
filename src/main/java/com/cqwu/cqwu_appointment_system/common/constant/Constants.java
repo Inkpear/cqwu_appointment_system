@@ -52,6 +52,7 @@ public class Constants {
     public static final String BATCH_CREATE_SUCCESS = "批量创建成功";
 
     public static final String BATCH_CREATE_FAIL = "批量创建失败，可能由于数据重复或内容无效";
+    public static final String BATCH_UPDATE_FAIL_NOT_FOUND = "批量更新失败，未找到任何匹配的记录";
 
     // ===================================================================
     // 认证授权消息
@@ -89,4 +90,33 @@ public class Constants {
     public static final String ROLE_USER = "USER";
     public static final String ROLE_ROOT = "ROOT";
     public static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
+    public static final String CQWU_SYSTEM = "JIAOWU";
+
+    /**
+     * 场所基础状态 (由管理员设置)
+     */
+    public static final class VenueBaseStatus {
+        public static final String AVAILABLE = "AVAILABLE"; // 可用
+        public static final String MAINTENANCE = "MAINTENANCE"; // 维修中
+        public static final String DISABLED = "DISABLED"; // 已禁用
+    }
+
+    /**
+     * 场所实时状态 (由系统计算)
+     */
+    public static final class VenueRealtimeStatus {
+        public static final String AVAILABLE = "AVAILABLE"; // 当前可用
+        public static final String OCCUPIED = "OCCUPIED"; // 当前被占用
+        public static final String CLOSED = "CLOSED"; // 当前未在开放时间
+        public static final String UNKNOWN = "UNKNOWN"; // 初始未知状态
+    }
+
+    // ===================================================================
+    // 时间占用块类型常量 (TimeBlock Type Constants)
+    // ===================================================================
+    public static final class TimeBlockType {
+        public static final String APPOINTMENT = "APPOINTMENT";   // 用户预约
+        public static final String COURSE = "COURSE";             // 教务课程
+        public static final String MAINTENANCE = "MAINTENANCE";   // 维修/维护
+    }
 }
