@@ -85,8 +85,8 @@ public class Constants {
 
     public static final Integer DEFAULT_PAGE = 0;
     public static final Integer DEFAULT_PAGE_SIZE = 10;
-    public static final String ROLE_ADMIN = "admin";
-    public static final String ROLE_USER = "user";
-    public static final String ROLE_ROOT = "root";
+    public static final String ROLE_ADMIN = "ADMIN";
+    public static final String ROLE_USER = "USER";
+    public static final String ROLE_ROOT = "ROOT";
     public static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
 }

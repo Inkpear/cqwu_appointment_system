@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/users")
 @Slf4j
-@PreAuthorize("hasRole('ROOT')")
+@PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
 public class UserController {
 
     @Autowired

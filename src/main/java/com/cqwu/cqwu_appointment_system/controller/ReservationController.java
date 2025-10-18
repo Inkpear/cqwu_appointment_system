@@ -158,7 +158,7 @@ public class ReservationController {
      * @return 操作结果
      */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> rejectReservation(@PathVariable Long id,
             @RequestParam(required = false) String reason) {
         log.info("管理员正在拒绝预约, ID: {}, Reason: {}", id, reason);
@@ -180,7 +180,7 @@ public class ReservationController {
      * @return 操作结果
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> cancelReservationByAdmin(@PathVariable Long id, @RequestParam String reason) {
         log.info("管理员正在取消预约, ID: {}, Reason: {}", id, reason);
         try {
