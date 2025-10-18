@@ -35,3 +35,6 @@ build/
 
 #日志
 /logs
+
+#临时sql
+temp.sql
