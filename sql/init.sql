@@ -1,11 +1,11 @@
 -- DROP DATABASE IF EXISTS cqwu;
 -- CREATE DATABASE cqwu CHARACTER set utf8mb4 COLLATE utf8mb4_unicode_ci;
-
 USE cqwu
-
 DROP TABLE IF EXISTS `venue`;
 
-DROP TABLE IF EXISTS `reservation`;
+DROP TABLE IF EXISTS `reservations`;
+
+DROP TABLE IF EXISTS `time_blocks`;
 
 DROP TABLE IF EXISTS `user`;
 
@@ -22,11 +22,17 @@ CREATE TABLE
     `floor` INT NULL DEFAULT NULL COMMENT '楼层',
     `capacity` INT NULL DEFAULT 0 COMMENT '容量',
     `category_id` BIGINT NULL DEFAULT NULL COMMENT '分类ID, 关联 venue_category 表',
-    `equipment` TEXT NULL COMMENT '设备配置',
-    `status` VARCHAR(20) NULL DEFAULT 'available' COMMENT '状态 (e.g., available, unavailable, under_maintenance)',
+    `equipment` TEXT NULL COMMENT '设备配置 (例如: 投影仪, 白板, 空调)',
+    `base_status` VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE' COMMENT '基础状态 (由管理员设置, 如 AVAILABLE, MAINTENANCE, DISABLED)',
+    `realtime_status` VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN' COMMENT '实时状态 (由定时任务计算, 如 AVAILABLE, OCCUPIED, CLOSED)。UNKNOWN 为初始值',
+    `open_time` TIME NULL COMMENT '每日开放时间 (例如: 08:00:00)',
+    `close_time` TIME NULL COMMENT '每日关闭时间 (例如: 22:00:00)',
+    `requires_approval` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '预约是否需要人工审批 (TRUE: 是, FALSE: 否)',
+    `max_booking_duration_minutes` INT NULL COMMENT '单次预约最长时长（分钟）。如果为NULL，则表示无限制',
     PRIMARY KEY (`id`),
     INDEX `idx_category_id` (`category_id`),
-    INDEX `idx_status` (`status`)
+    INDEX `idx_base_status` (`base_status`),
+    INDEX `idx_realtime_status` (`realtime_status`)
   ) ENGINE = InnoDB CHARACTER
 SET
   = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所信息表';
@@ -50,50 +56,39 @@ SET
 CREATE TABLE
   `time_blocks` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `venue_id` BIGINT NOT NULL COMMENT '场所ID',
+    `venue_id` BIGINT NOT NULL COMMENT '场所ID, 关联 venue 表',
     `start_datetime` DATETIME NOT NULL COMMENT '占用开始时间',
     `end_datetime` DATETIME NOT NULL COMMENT '占用结束时间',
-    `title` VARCHAR(255) NOT NULL COMMENT '占用事件的标题 (e.g., 高等数学, 学生活动预约, 管道维修)',
-    `block_type` VARCHAR(50) NOT NULL COMMENT '占用类型 (COURSE, APPOINTMENT, MAINTENANCE)',
-    `creator_user_id` VARCHAR(20) NULL COMMENT '创建者用户ID (学号/工号)。如果为NULL，则代表系统级占用',
-    `source_system` VARCHAR(50) NULL COMMENT '数据来源系统 (e.g., JIAOWU, SELF_SYSTEM)',
-    `source_event_id` VARCHAR(100) NULL COMMENT '在源系统中的事件ID',
+    `title` VARCHAR(255) NOT NULL COMMENT '占用事件的标题 (例如: 高等数学, 学生活动预约, 管道维修)',
+    `block_type` VARCHAR(50) NOT NULL COMMENT '占用类型 (APPOINTMENT: 预约, COURSE: 课程, MAINTENANCE: 维护)',
+    `reservation_id` BIGINT NULL COMMENT '如果类型是APPOINTMENT, 这里反向关联到 reservations 表',
     PRIMARY KEY (`id`),
-    INDEX `idx_venue_datetime` (`venue_id`, `start_datetime`, `end_datetime`)
+    INDEX `idx_venue_datetime` (`venue_id`, `start_datetime`, `end_datetime`),
+    INDEX `idx_reservation_id` (`reservation_id`)
   ) ENGINE = InnoDB CHARACTER
 SET
-  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所时间占用表';
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '场所时间占用表（调度核心）';
 
--- ----------------------------
--- Table structure for reservation
--- ----------------------------
+-- ----------------------------------------------------
+-- Table structure for: reservations
+-- ----------------------------------------------------
 CREATE TABLE
-  `reservation` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `venue_id` BIGINT NOT NULL COMMENT '场所ID, 关联venue表',
-    `user_id` VARCHAR(20) NOT NULL COMMENT '用户ID, 关联用户表',
-    `start_time` DATETIME NOT NULL COMMENT '预约开始时间',
-    `end_time` DATETIME NOT NULL COMMENT '预约结束时间',
-    `purpose` VARCHAR(500) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '使用目的',
-      `status` VARCHAR(20) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'confirmed' COMMENT '预约状态',
-      `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
-      `reservation_code` VARCHAR(50) CHARACTER
-    SET
-      utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '预约码，用于核销或查询',
-      PRIMARY KEY (`id`) USING BTREE,
-      UNIQUE INDEX `uk_reservation_code` (`reservation_code`) USING BTREE COMMENT '预约码唯一索引，确保其唯一性',
-      INDEX `idx_venue_id` (`venue_id`) USING BTREE,
-      INDEX `idx_user_id` (`user_id`) USING BTREE,
-      INDEX `idx_start_time` (`start_time`) USING BTREE,
-      INDEX `idx_status` (`status`) USING BTREE,
-      INDEX `idx_venue_time` (`venue_id`, `start_time`, `end_time`) USING BTREE COMMENT '用于快速查询某个场所在特定时间段内的预约'
+  `reservations` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '预约记录的主键ID',
+    `time_block_id` BIGINT NOT NULL COMMENT '关联到 time_blocks 表的主键ID',
+    `creator_user_id` VARCHAR(20) NOT NULL COMMENT '创建者用户ID (学号/工号)',
+    `status` VARCHAR(20) NOT NULL COMMENT '状态 (PENDING: 待审批, CONFIRMED: 已确认, REJECTED: 已拒绝, CANCELLED: 已取消)',
+    `appointment_code` VARCHAR(50) NULL COMMENT '预约确认码，在状态变为 CONFIRMED 时生成',
+    `approver_user_id` VARCHAR(20) NULL COMMENT '审批人用户ID',
+    `approval_time` DATETIME NULL COMMENT '审批操作时间',
+    `rejection_reason` TEXT NULL COMMENT '拒绝原因',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `uk_time_block_id` (`time_block_id`), -- 强制一个 time_block 只对应一个 reservation
+    UNIQUE INDEX `uk_appointment_code` (`appointment_code`)
   ) ENGINE = InnoDB CHARACTER
 SET
-  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预约记录表' ROW_FORMAT = Dynamic;
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预约业务表';
 
 -- ----------------------------
 -- Table structure for user
