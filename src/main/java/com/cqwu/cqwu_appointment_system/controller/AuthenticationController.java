@@ -4,11 +4,13 @@ import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
+import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.service.AuthenticationService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -90,6 +92,29 @@ public class AuthenticationController {
         }
 
         log.warn("退出登录失败：无法从 SecurityContext 获取用户信息。");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(AjaxResult.error(HttpStatus.UNAUTHORIZED, Constants.USER_NOT_LOGIN));
+    }
+
+    /**
+     * 获取当前登录用户的详细信息
+     */
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getCurrentUserInfo() {
+        log.info("开始获取当前登录用户信息...");
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.getPrincipal() instanceof LoginUser) {
+            LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+            User user = loginUser.getUser();
+
+            log.info("成功获取到用户 '{}' 的信息", user.getId());
+            return ResponseEntity.ok(AjaxResult.success("获取用户信息成功", user));
+        }
+
+        log.warn("获取当前用户信息失败：无法从 SecurityContext 中获取有效的 LoginUser 对象。");
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(AjaxResult.error(HttpStatus.UNAUTHORIZED, Constants.USER_NOT_LOGIN));
     }
