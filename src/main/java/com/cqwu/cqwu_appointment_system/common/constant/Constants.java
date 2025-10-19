@@ -74,10 +74,8 @@ public class Constants {
     public static final String PARAM_ID_IS_EMPTY = "至少需要提供一个ID";
     public static final String USER_NOT_FOUND = "未查询到指定用户";
 
-    // [优化] 常量名更清晰，与 UPDATE_FAIL 解耦
     public static final String UPDATE_FAIL_NOT_FOUND = "更新失败，未找到需要更新的目标资源";
 
-    // [新增] 用于替代Controller中的硬编码字符串
     public static final String DELETE_FAIL_NOT_FOUND = "删除失败，没有找到与提供ID匹配的记录";
 
     // ===================================================================
@@ -86,11 +84,15 @@ public class Constants {
 
     public static final Integer DEFAULT_PAGE = 0;
     public static final Integer DEFAULT_PAGE_SIZE = 10;
-    public static final String ROLE_ADMIN = "ADMIN";
-    public static final String ROLE_USER = "USER";
-    public static final String ROLE_ROOT = "ROOT";
+
     public static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
     public static final String CQWU_SYSTEM = "JIAOWU";
+
+    public static final class UserRoleType {
+        public static final String ROLE_ADMIN = "ADMIN";
+        public static final String ROLE_USER = "USER";
+        public static final String ROLE_ROOT = "ROOT";
+    }
 
     /**
      * 场所基础状态 (由管理员设置)
@@ -115,8 +117,21 @@ public class Constants {
     // 时间占用块类型常量 (TimeBlock Type Constants)
     // ===================================================================
     public static final class TimeBlockType {
-        public static final String APPOINTMENT = "APPOINTMENT";   // 用户预约
-        public static final String COURSE = "COURSE";             // 教务课程
-        public static final String MAINTENANCE = "MAINTENANCE";   // 维修/维护
+        public static final String APPOINTMENT = "APPOINTMENT"; // 用户预约
+        public static final String COURSE = "COURSE"; // 教务课程
+        public static final String MAINTENANCE = "MAINTENANCE"; // 维修/维护
+    }
+
+    // ===================================================================
+    // 预约状态常量 (Reservation Status Constants)
+    // ===================================================================
+    public static final class ReservationStatus {
+        public static final String PENDING = "PENDING";
+        public static final String CONFIRMED = "CONFIRMED";
+        public static final String IN_PROGRESS = "IN_PROGRESS";
+        public static final String COMPLETED = "COMPLETED";
+        public static final String REJECTED = "REJECTED";
+        public static final String CANCELLED = "CANCELLED";
+        public static final String EXPIRED = "EXPIRED";
     }
 }
