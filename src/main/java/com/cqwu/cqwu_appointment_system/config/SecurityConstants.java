@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component("securityConstants")
 public class SecurityConstants {
 
-    public final String ROLE_ADMIN = Constants.ROLE_ADMIN;
-    public final String ROLE_USER = Constants.ROLE_USER;
-    public final String ROLE_ROOT = Constants.ROLE_ROOT; 
+    public final String ROLE_ADMIN = Constants.UserRoleType.ROLE_ADMIN;
+    public final String ROLE_USER = Constants.UserRoleType.ROLE_USER;
+    public final String ROLE_ROOT = Constants.UserRoleType.ROLE_ROOT; 
 }
