@@ -2,6 +2,7 @@ package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
+import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -64,11 +66,25 @@ public class VenueServiceImpl implements VenueService {
         Assert.notNull(venue, "场所信息不能为空");
         Assert.notNull(venue.getId(), "更新场所时，场所ID不能为空");
 
+        Venue existingVenue = venueMapper.selectByPrimaryKey(venue.getId());
+        if (existingVenue == null) {
+            log.warn("尝试更新一个不存在的场所, ID: {}", venue.getId());
+            return 0;
+        }
+
+        LocalTime finalOpenTime = venue.getOpenTime() != null ? venue.getOpenTime()
+                : existingVenue.getOpenTime();
+        LocalTime finalCloseTime = venue.getCloseTime() != null ? venue.getCloseTime()
+                : existingVenue.getCloseTime();
+
+        ValidationUtils.requireStartBeforeEnd(finalOpenTime, finalCloseTime, "每日关闭时间必须晚于开放时间");
+
+        venue.setRealtimeStatus(null);
         int result = venueMapper.updateByPrimaryKeySelective(venue);
         if (result > 0) {
             log.info("成功更新场所信息, Venue ID: {}", venue.getId());
         } else {
-            log.error("更新场所信息失败, Venue ID: {}", venue.getId());
+            log.warn("更新场所信息未产生影响, 可能记录不存在或数据未变化, Venue ID: {}", venue.getId());
         }
         return result;
     }
@@ -86,7 +102,13 @@ public class VenueServiceImpl implements VenueService {
         Assert.notEmpty(venues, "要批量添加的场所列表不能为空");
 
         for (Venue venue : venues) {
+            ValidationUtils.requireStartBeforeEnd(
+                    venue.getOpenTime(),
+                    venue.getCloseTime(),
+                    "每日关闭时间必须晚于开放时间");
+
             venue.setId(null);
+            venue.setRealtimeStatus(null);
         }
 
         int result = venueMapper.insertBatch(venues);
@@ -119,7 +141,7 @@ public class VenueServiceImpl implements VenueService {
     }
 
     /**
-     * 根据条件分页查询场所
+     * 根据条件分页查询场所 (已更新)
      *
      * @param query 查询条件
      * @return 分页后的场所列表
@@ -139,14 +161,22 @@ public class VenueServiceImpl implements VenueService {
         if (StringUtils.hasText(query.getName())) {
             criteria.andNameLike("%" + query.getName() + "%");
         }
-        if (StringUtils.hasText(query.getStatus())) {
-            criteria.andStatusEqualTo(query.getStatus());
+
+        if (StringUtils.hasText(query.getBaseStatus())) {
+            criteria.andBaseStatusEqualTo(query.getBaseStatus());
         }
+        if (StringUtils.hasText(query.getRealtimeStatus())) {
+            criteria.andRealtimeStatusEqualTo(query.getRealtimeStatus());
+        }
+
         if (StringUtils.hasText(query.getLocation())) {
             criteria.andLocationLike("%" + query.getLocation() + "%");
         }
         if (query.getFloor() != null) {
             criteria.andFloorEqualTo(query.getFloor());
+        }
+        if (query.getRequiresApproval() != null) {
+            criteria.andRequiresApprovalEqualTo(query.getRequiresApproval());
         }
 
         List<Venue> venues = venueMapper.selectByExample(example);
@@ -154,5 +184,53 @@ public class VenueServiceImpl implements VenueService {
 
         log.info("查询完成, 共找到 {} 条数据", pageInfo.getTotal());
         return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
+    }
+
+    /**
+     * 批量更新场所实时状态
+     */
+    @Override
+    @Transactional
+    public int updateRealtimeStatusBatch(List<Venue> venuesToUpdate) {
+        if (venuesToUpdate == null || venuesToUpdate.isEmpty()) {
+            return 0;
+        }
+        log.info("开始批量更新 {} 个场所的实时状态...", venuesToUpdate.size());
+        return venueMapper.updateRealtimeStatusBatch(venuesToUpdate);
+    }
+
+    /**
+     * 通用批量更新实现
+     */
+    @Override
+    @Transactional
+    public int updateVenuesBatch(Long[] ids, Venue venueUpdateData) {
+        log.info("管理员开始批量更新 {} 个场所的信息", ids.length);
+        Assert.notEmpty(ids, "要更新的ID列表不能为空");
+        Assert.notNull(venueUpdateData, "更新数据不能为空");
+
+        for (Long id : ids) {
+            Venue existingVenue = venueMapper.selectByPrimaryKey(id);
+            if (existingVenue != null) {
+                LocalTime finalOpenTime = venueUpdateData.getOpenTime() != null ? venueUpdateData.getOpenTime()
+                        : existingVenue.getOpenTime();
+                LocalTime finalCloseTime = venueUpdateData.getCloseTime() != null ? venueUpdateData.getCloseTime()
+                        : existingVenue.getCloseTime();
+                ValidationUtils.requireStartBeforeEnd(finalOpenTime, finalCloseTime, "ID为 " + id + " 的场所时间范围不合法");
+            }
+        }
+
+        venueUpdateData.setId(null);
+        venueUpdateData.setRealtimeStatus(null);
+
+        List<Long> idList = Arrays.asList(ids);
+        int result = venueMapper.updateVenuesBatch(venueUpdateData, idList);
+
+        if (result > 0) {
+            log.info("成功批量更新 {} 条场所信息", result);
+        } else {
+            log.warn("批量更新未影响任何记录, 可能ID列表匹配不到数据");
+        }
+        return result;
     }
 }
