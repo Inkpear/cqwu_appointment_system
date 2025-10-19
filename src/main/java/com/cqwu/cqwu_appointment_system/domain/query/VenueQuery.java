@@ -8,9 +8,11 @@ import lombok.Data;
 @Data
 public class VenueQuery {
     private String name;
-    private String status;
     private String location;
     private Integer floor;
     private Integer page;
     private Integer size;
+    private Boolean requiresApproval;
+    private String baseStatus;   
+    private String realtimeStatus; 
 }

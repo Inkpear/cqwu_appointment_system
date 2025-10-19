@@ -44,4 +44,14 @@ public interface VenueService {
      * @return 分页后的场所数据
      */
     public Page<Venue> searchVenues(VenueQuery query);
+
+    /**
+     * 批量更新场所的实时状态。
+     */
+    int updateRealtimeStatusBatch(List<Venue> venuesToUpdate);
+
+    /**
+     * 批量更新多个场所的通用信息。
+     */
+    int updateVenuesBatch(Long[] ids, Venue venueUpdateData);
 }
