@@ -2,17 +2,17 @@ package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
-import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
+import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateUserRequest;
+import com.cqwu.cqwu_appointment_system.domain.dto.UpdateUserRoleRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.UserQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.service.UserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -59,7 +59,13 @@ public class UserController {
      * 更新用户信息 (不允许通过此接口修改角色)
      */
     @PutMapping("/{id}")
-    public ResponseEntity<AjaxResult> updateUser(@PathVariable String id, @RequestBody @Valid UpdateUserRequest updateUserRequest) {
+    public ResponseEntity<AjaxResult> updateUser(@PathVariable String id,
+            @RequestBody @Valid UpdateUserRequest updateUserRequest) {
+        if (ValidationUtils.isAllFieldsNull(updateUserRequest)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, "更新数据不能为空，至少需要提供一个要修改的字段"));
+        }
+
         log.info("管理员正在更新用户信息, ID: {}", id);
 
         User userToUpdate = new User();
@@ -86,14 +92,14 @@ public class UserController {
      * 修改指定用户的角色
      */
     @PutMapping("/{id}/role")
-    public ResponseEntity<AjaxResult> updateUserRole(@PathVariable String id, @RequestBody User userRoleInfo) {
+    public ResponseEntity<AjaxResult> updateUserRole(@PathVariable String id,
+            @RequestBody @Valid UpdateUserRoleRequest userRoleInfo) {
         String newRole = userRoleInfo.getRole();
-        log.info("管理员正在修改用户 '{}' 的角色为 '{}'", id, newRole);
-
-        if (!StringUtils.matches(newRole, List.of(Constants.ROLE_USER, Constants.ROLE_ADMIN, Constants.ROLE_ROOT))) {
+        if (ValidationUtils.isAllFieldsNull(userRoleInfo)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error("无效的角色名称"));
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, "更新数据不能为空，至少需要提供一个要修改的字段"));
         }
+        log.info("管理员正在修改用户 '{}' 的角色为 '{}'", id, newRole);
 
         User userToUpdate = new User();
         userToUpdate.setId(id);

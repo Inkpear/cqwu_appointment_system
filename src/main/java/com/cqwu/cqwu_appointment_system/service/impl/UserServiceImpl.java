@@ -106,7 +106,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public int insertUser(User user) {
         log.info("开始插入新用户, User ID: {}", user.getId());
-        int result = userMapper.insert(user);
+        int result = userMapper.insertSelective(user);
         if (result > 0) {
             log.info("成功插入新用户, User ID: {}", user.getId());
         } else {
