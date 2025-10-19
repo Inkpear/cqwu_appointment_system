@@ -75,17 +75,24 @@ SET
 CREATE TABLE
   `reservations` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '预约记录的主键ID',
-    `time_block_id` BIGINT NOT NULL COMMENT '关联到 time_blocks 表的主键ID',
+    `venue_id` BIGINT NOT NULL COMMENT '场所ID, 冗余字段用于快速查询',
+    `start_datetime` DATETIME NOT NULL COMMENT '申请的开始时间',
+    `end_datetime` DATETIME NOT NULL COMMENT '申请的结束时间',
+    `title` VARCHAR(255) NOT NULL COMMENT '申请的标题',
+    `purpose` TEXT NULL COMMENT '预约的详细事由/目的',
+    `time_block_id` BIGINT NULL COMMENT '关联到 time_blocks 表的主键ID (仅在CONFIRMED状态下有效)',
     `creator_user_id` VARCHAR(20) NOT NULL COMMENT '创建者用户ID (学号/工号)',
-    `status` VARCHAR(20) NOT NULL COMMENT '状态 (PENDING: 待审批, CONFIRMED: 已确认, REJECTED: 已拒绝, CANCELLED: 已取消)',
+    `status` VARCHAR(20) NOT NULL COMMENT '状态 (PENDING, CONFIRMED, REJECTED, CANCELLED, EXPIRED)',
     `appointment_code` VARCHAR(50) NULL COMMENT '预约确认码，在状态变为 CONFIRMED 时生成',
     `approver_user_id` VARCHAR(20) NULL COMMENT '审批人用户ID',
     `approval_time` DATETIME NULL COMMENT '审批操作时间',
     `rejection_reason` TEXT NULL COMMENT '拒绝原因',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请创建时间',
     PRIMARY KEY (`id`),
-    UNIQUE INDEX `uk_time_block_id` (`time_block_id`), -- 强制一个 time_block 只对应一个 reservation
-    UNIQUE INDEX `uk_appointment_code` (`appointment_code`)
+    UNIQUE INDEX `uk_time_block_id` (`time_block_id`),
+    UNIQUE INDEX `uk_appointment_code` (`appointment_code`),
+    INDEX `idx_creator_user_id` (`creator_user_id`),
+    INDEX `idx_status` (`status`)
   ) ENGINE = InnoDB CHARACTER
 SET
   = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预约业务表';
