@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE generatorConfiguration
-        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
-        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+<!DOCTYPE generatorConfiguration PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN" "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
 
 <generatorConfiguration>
     <!-- 引入数据库连接配置 -->
@@ -10,41 +8,44 @@
     <context id="MySQLTables" targetRuntime="MyBatis3">
         <!-- 数据库连接信息 -->
         <jdbcConnection driverClass="com.mysql.cj.jdbc.Driver"
-                        connectionURL="jdbc:mysql://localhost:3306/cqwu?serverTimezone=UTC"
-                        userId="root"
-                        password="admin123">
+            connectionURL="jdbc:mysql://localhost:3306/cqwu?serverTimezone=UTC"
+            userId="root"
+            password="admin123">
         </jdbcConnection>
-        
+
         <javaTypeResolver>
-            <property name="useJSR310Types" value="true"/>
+            <property name="useJSR310Types" value="true" />
         </javaTypeResolver>
 
         <!-- 生成实体类 (Model) 的位置 -->
-        <javaModelGenerator targetPackage="com.cqwu.cqwu_appointment_system.entity" targetProject="src/main/java"/>
+        <javaModelGenerator targetPackage="com.cqwu.cqwu_appointment_system.entity"
+            targetProject="src/main/java" />
 
         <!-- 生成 Mapper XML 文件的位置 -->
-        <sqlMapGenerator targetPackage="com.cqwu.cqwu_appointment_system.mapper" targetProject="src/main/java"/>
+        <sqlMapGenerator targetPackage="com.cqwu.cqwu_appointment_system.mapper"
+            targetProject="src/main/java" />
 
         <!-- 生成 Mapper 接口的位置 -->
-        <javaClientGenerator type="XMLMAPPER" targetPackage="com.cqwu.cqwu_appointment_system.mapper" targetProject="src/main/java"/>
+        <javaClientGenerator type="XMLMAPPER"
+            targetPackage="com.cqwu.cqwu_appointment_system.mapper" targetProject="src/main/java" />
 
         <!-- 要生成代码的表 -->
         <!-- tableName: 数据库表名; domainObjectName: 生成的实体类名 -->
-        <table tableName="venue" domainObjectName="Venue">
-            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
-        </table>
-
-        <table tableName="venue_category" domainObjectName="VenueCategory">
-            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
-        </table>
-
-        <table tableName="time_blocks" domainObjectName="TimeBlock">
-            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
-        </table>
-
-        <!-- <table tableName="reservation" domainObjectName="Reservation">
+        <!-- <table tableName="venue" domainObjectName="Venue">
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table> -->
+
+        <!-- <table tableName="venue_category" domainObjectName="VenueCategory">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table> -->
+
+        <!-- <table tableName="time_blocks" domainObjectName="TimeBlock">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table> -->
+
+        <table tableName="reservations" domainObjectName="Reservation">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table>
 
         <!-- <table tableName="user" domainObjectName="User">
         </table> -->
