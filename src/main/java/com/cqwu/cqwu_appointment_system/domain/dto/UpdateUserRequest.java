@@ -1,19 +1,19 @@
 package com.cqwu.cqwu_appointment_system.domain.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class UpdateUserRequest {
 
-    @NotBlank(message = "姓名不能为空")
+    @Size(max = 50, message = "真实姓名长度不能超过50个字符")
     private String name;
 
-    @NotNull(message = "用户类型不能为空")
     private Byte userType;
-
+    
+    @Size(max = 100, message = "所属学院长度不能超过100个字符")
     private String college;
 
+    @Size(max = 100, message = "所属专业长度不能超过100个字符")
     private String major;
 }
