@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -202,6 +203,16 @@ public class ReservationServiceImpl implements ReservationService {
         PageInfo<ReservationWithBLOBs> pageInfo = new PageInfo<>(list);
 
         return new PageImpl<>(list, PageRequest.of(page, size), pageInfo.getTotal());
+    }
+
+    @Override
+    public List<ReservationWithBLOBs> findReservationsByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        ReservationExample example = new ReservationExample();
+        example.createCriteria().andIdIn(ids);
+        return reservationMapper.selectByExampleWithBLOBs(example);
     }
 
     private String generateAppointmentCode() {

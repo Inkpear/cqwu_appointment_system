@@ -4,23 +4,38 @@ import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
+import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.BatchUpdateVenueRequest;
+import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
+import com.cqwu.cqwu_appointment_system.entity.Reservation;
+import com.cqwu.cqwu_appointment_system.entity.TimeBlock;
+import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.service.ReservationService;
+import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/venues")
@@ -29,6 +44,11 @@ public class VenueController {
 
     @Autowired
     private VenueService venueService;
+
+    @Autowired
+    private TimeBlockService timeBlockService;
+    @Autowired
+    private ReservationService reservationService;
 
     /**
      * 分页搜索场所信息
@@ -172,5 +192,70 @@ public class VenueController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.BATCH_UPDATE_FAIL_NOT_FOUND));
         }
+    }
+
+    /**
+     * 获取指定场所在特定时间范围内的所有日程安排（用于日历视图）。
+     *
+     * @param venueId 场所ID
+     * @param start   日历视图的开始时间 (ISO 8601 格式, e.g., 2025-10-01T00:00:00)
+     * @param end     日历视图的结束时间
+     * @return 适用于前端日历的事件列表
+     */
+    @GetMapping("/{venueId}/time-blocks")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getVenueSchedule(
+            @PathVariable Long venueId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+
+        User currentUser = getCurrentUser();
+        log.info("用户 '{}' 正在查询场所 '{}' 从 '{}' 到 '{}' 的日程安排", currentUser.getId(), venueId, start, end);
+        if (start == null) {
+            start = LocalDateTime.now();
+        }
+        if (end == null) {
+            end = start.plusMonths(1);
+        }
+
+        List<TimeBlock> timeBlocks = timeBlockService.findTimeBlocksForVenue(venueId, start, end);
+        if (timeBlocks.isEmpty()) {
+            return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, Collections.emptyList()));
+        }
+
+        List<Long> reservationIds = timeBlocks.stream()
+                .filter(tb -> "APPOINTMENT".equals(tb.getBlockType()) && tb.getReservationId() != null)
+                .map(TimeBlock::getReservationId)
+                .collect(Collectors.toList());
+
+        Map<Long, Reservation> reservationMap = reservationService.findReservationsByIds(reservationIds)
+                .stream()
+                .collect(Collectors.toMap(Reservation::getId, Function.identity()));
+
+        List<CalendarEventDTO> calendarEvents = timeBlocks.stream().map(tb -> {
+            CalendarEventDTO dto = new CalendarEventDTO();
+            dto.setId(tb.getId());
+            dto.setTitle(tb.getTitle());
+            dto.setStart(tb.getStartDatetime());
+            dto.setEnd(tb.getEndDatetime());
+            dto.setBlockType(tb.getBlockType());
+
+            boolean isOwned = false;
+            if ("APPOINTMENT".equals(tb.getBlockType()) && tb.getReservationId() != null) {
+                Reservation r = reservationMap.get(tb.getReservationId());
+                if (r != null && Objects.equals(r.getCreatorUserId(), currentUser.getId())) {
+                    isOwned = true;
+                }
+            }
+            dto.setOwnedByCurrentUser(isOwned);
+
+            return dto;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, calendarEvents));
+    }
+
+    private User getCurrentUser() {
+        return ((LoginUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUser();
     }
 }

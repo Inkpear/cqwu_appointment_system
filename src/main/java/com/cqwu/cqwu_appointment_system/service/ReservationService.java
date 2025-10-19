@@ -3,6 +3,9 @@ package com.cqwu.cqwu_appointment_system.service;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
+
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 
 public interface ReservationService {
@@ -42,4 +45,9 @@ public interface ReservationService {
      * 动态分页查询预约列表 (包含大字段)。
      */
     Page<ReservationWithBLOBs> searchReservations(ReservationQuery query);
+
+    /**
+     * 批量id查询预约
+     */
+    List<ReservationWithBLOBs> findReservationsByIds(List<Long> ids);
 }
