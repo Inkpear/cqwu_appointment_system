@@ -60,4 +60,23 @@ public interface TimeBlockService {
      * @return TimeBlock 对象，如果不存在则返回 null
      */
     TimeBlock findTimeBlockById(Long id);
+
+    /**
+     * 强制批量插入 TimeBlock (课程)。
+     * 此方法会检测时间冲突。如果与已存在的 APPOINTMENT 类型 TimeBlock 冲突，
+     * 它会先删除这些冲突的 TimeBlock，然后插入新的课程 TimeBlock。
+     *
+     * @param courseTimeBlocks 要插入的、block_type 为 'COURSE' 的 TimeBlock 列表
+     * @return 成功插入的数量
+     */
+    int forceInsertCourseTimeBlocks(List<TimeBlock> courseTimeBlocks);
+
+    /**
+     * 根据场所ID，批量删除所有 COURSE 类型的 TimeBlock。
+     * 通常在同步新学期课表前调用，用于清空旧数据。
+     *
+     * @param venueIds 要清空课程安排的场所ID列表
+     * @return 成功删除的数量
+     */
+    int deleteAllCourseTimeBlocksByVenueIds(List<Long> venueIds);
 }

@@ -93,4 +93,11 @@ public interface TimeBlockMapper {
      * @mbg.generated Sun Oct 19 04:39:05 CST 2025
      */
     int updateByPrimaryKey(TimeBlock row);
+
+    /**
+     * 批量插入 TimeBlock 记录。
+     * @param records 要插入的 TimeBlock 列表
+     * @return 影响的行数
+     */
+    int insertBatch(List<TimeBlock> records);
 }
