@@ -10,42 +10,65 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.Collections;
 
+/**
+ * @description Spring Security 的核心用户对象 (UserDetails 的实现)。
+ *              它封装了我们的业务用户实体 (User)，并提供了 Spring Security 所需的
+ *              认证和授权信息（如用户名、权限等）。
+ */
 @Data
 @NoArgsConstructor
 public class LoginUser implements UserDetails {
 
     private User user;
-    // (可选) 可以添加 token, loginTime 等信息
 
     public LoginUser(User user) {
         this.user = user;
     }
 
+    /**
+     * 返回用户的权限集合。
+     * Spring Security 的角色检查默认需要 "ROLE_" 前缀。
+     */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // 将我们的 role 字符串（如 "admin"）转换为 Spring Security 的权限对象
-        // Spring Security 的角色检查默认需要 "ROLE_" 前缀
         return Collections.singleton(new SimpleGrantedAuthority("ROLE_" + user.getRole().toUpperCase()));
     }
 
+    /**
+     * 返回用户的密码。
+     * 在此系统中，认证由外部（如CAS）处理，不使用密码，因此返回null。
+     */
     @Override
     public String getPassword() {
-        // 我们不使用密码认证，返回 null
         return null;
     }
 
+    /**
+     * 返回用户的唯一标识，在此系统中为学号/工号。
+     */
     @Override
     public String getUsername() {
-        return user.getId(); // 使用学号/工号作为 Spring Security 的 username
+        return user.getId();
     }
 
-    // 账户状态，可以根据需要从 User 实体中获取
+    // 以下为账户状态检查，当前默认全部返回true
     @Override
-    public boolean isAccountNonExpired() { return true; }
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
     @Override
-    public boolean isCredentialsNonExpired() { return true; }
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() {
+        return true;
+    }
 }

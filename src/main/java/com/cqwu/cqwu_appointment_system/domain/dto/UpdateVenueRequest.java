@@ -2,13 +2,15 @@ package com.cqwu.cqwu_appointment_system.domain.dto;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.validation.ValidStatus;
-
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-
 import java.time.LocalTime;
 
+/**
+ * @description 用于管理员更新场所详细信息的请求体 DTO。
+ *              所有字段都是可选的，允许部分更新。
+ */
 @Data
 public class UpdateVenueRequest {
 

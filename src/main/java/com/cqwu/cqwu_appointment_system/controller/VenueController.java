@@ -1,42 +1,36 @@
 package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
-import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
-import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
+import com.cqwu.cqwu_appointment_system.domain.dto.BatchDeleteRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.BatchUpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
-import com.cqwu.cqwu_appointment_system.entity.Reservation;
-import com.cqwu.cqwu_appointment_system.entity.TimeBlock;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
-import com.cqwu.cqwu_appointment_system.service.ReservationService;
-import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
+/**
+ * @description 负责处理所有与场所资源相关的API请求。
+ */
 @RestController
 @RequestMapping("/api/venues")
 @Slf4j
@@ -45,219 +39,141 @@ public class VenueController {
     @Autowired
     private VenueService venueService;
 
-    @Autowired
-    private TimeBlockService timeBlockService;
-
-    @Autowired
-    private ReservationService reservationService;
-
     /**
-     * 分页搜索场所信息
+     * 分页搜索场所信息。
+     *
+     * @param query 查询参数
+     * @return 分页的场所列表
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> searchVenues(VenueQuery query) {
         log.info("开始搜索场所, 查询参数: {}", query);
-
-        PageDTO<Venue> venuePage = PageDTO.fromPage(venueService.searchVenues(query));
-
-        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venuePage));
+        Page<Venue> venuePage = venueService.searchVenues(query);
+        PageDTO<Venue> venuePageDTO = PageDTO.fromPage(venuePage);
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venuePageDTO));
     }
 
     /**
-     * 根据ID获取单个场所信息
+     * 根据ID获取单个场所的详细信息。
+     *
+     * @param id 场所ID
+     * @return 场所详情
      */
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getVenueById(@PathVariable Long id) {
-        log.info("开始查询ID为 '{}' 的场所信息...", id);
+        log.info("查询场所详情, ID: {}", id);
         Venue venue = venueService.selectVenueById(id);
-        if (venue != null) {
-            return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venue));
-        } else {
-            log.warn("未找到ID为 '{}' 的场所", id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.QUERY_NOT_FOUND));
+        if (venue == null) {
+            throw new IllegalArgumentException(Constants.QUERY_NOT_FOUND);
         }
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venue));
     }
 
     /**
-     * 批量创建场所
-     * 
-     * @Valid 校验失败由 GlobalExceptionHandler 统一处理。
+     * [管理员] 批量创建场所。
+     *
+     * @param venues 场所信息列表
+     * @return 操作结果
      */
     @PostMapping
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> createVenues(@RequestBody List<@Valid Venue> venues) {
         if (venues == null || venues.isEmpty()) {
-            log.warn("创建场所失败：请求体为空");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_IS_EMPTY));
+            throw new IllegalArgumentException(Constants.PARAM_IS_EMPTY);
         }
-
-        log.info("开始批量创建场所, 数量: {}", venues != null ? venues.size() : 0);
-
+        log.info("开始批量创建场所, 数量: {}", venues.size());
         int successCount = venueService.insertVenues(venues);
-        if (successCount > 0) {
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new AjaxResult(HttpStatus.CREATED, String.format("成功添加 %d 个场所", successCount), venues));
-        } else {
-            log.warn("批量创建场所操作未影响任何行，可能是数据重复或其他业务约束导致");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.BATCH_CREATE_FAIL));
-        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(AjaxResult.created(String.format("成功添加 %d 个场所", successCount), venues));
     }
 
     /**
-     * 更新指定ID的场所信息
-     * 优化了“先查后改”模式，现在更高效。
+     * [管理员] 更新指定ID的场所信息。
+     *
+     * @param id            场所ID
+     * @param updateRequest 包含更新字段的请求体
+     * @return 操作结果
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id,
             @RequestBody @Valid UpdateVenueRequest updateRequest) {
-
-        if (ValidationUtils.isAllFieldsNull(updateRequest)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, "更新数据不能为空，至少需要提供一个要修改的字段"));
-        }
-        log.info("开始更新ID为 '{}' 的场所信息...", id);
-
+        log.info("开始更新场所信息, ID: {}", id);
         Venue venueToUpdate = new Venue();
         BeanUtils.copyProperties(updateRequest, venueToUpdate);
         venueToUpdate.setId(id);
 
-        int result = venueService.updateVenue(venueToUpdate);
+        // Service层现在会在找不到时抛出异常
+        venueService.updateVenue(venueToUpdate);
 
-        if (result > 0) {
-            log.info("成功更新ID为 '{}' 的场所", id);
-            return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
-        } else {
-            if (venueService.selectVenueById(id) == null) {
-                log.warn("更新失败: 未找到ID为 '{}' 的场所", id);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.UPDATE_FAIL_NOT_FOUND));
-            } else {
-                log.info("ID为 '{}' 的场所信息未发生变化", id);
-                return ResponseEntity.ok(AjaxResult.success(Constants.DATA_NOT_CHANGED));
-            }
-        }
+        return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
     }
 
     /**
-     * 根据ID批量删除场所
+     * [管理员] 根据ID批量删除场所。
+     * 
+     * @param request 包含要删除的ID列表的请求体
+     * @return 操作结果
      */
-    @DeleteMapping("/{ids}")
+    @DeleteMapping
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> deleteVenues(@PathVariable Long[] ids) {
-        if (ids == null || ids.length == 0) {
-            log.warn("删除场所失败：ID列表为空");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, Constants.PARAM_ID_IS_EMPTY));
-        }
-        log.info("开始删除场所, IDs: {}", Arrays.toString(ids));
+    public ResponseEntity<AjaxResult> deleteVenues(@RequestBody @Valid BatchDeleteRequest request) {
+        Long[] ids = request.getIds();
+        log.info("开始批量删除场所, IDs: {}", Arrays.toString(ids));
 
         int result = venueService.deleteVenueByIds(ids);
 
-        if (result > 0) {
-            log.info("成功删除 {} 条场所记录", result);
-            return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 条记录", result)));
-        } else {
-            log.warn("删除操作未影响任何记录, 可能ID '{}' 对应的资源不存在", Arrays.toString(ids));
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.DELETE_FAIL_NOT_FOUND));
+        if (result == 0) {
+            throw new IllegalArgumentException(Constants.DELETE_FAIL_NOT_FOUND);
         }
+        return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 条记录", result)));
     }
 
     /**
-     * 批量更新多个场所的信息。
+     * [管理员] 批量更新多个场所的通用信息。
+     *
+     * @param request 包含ID列表和更新数据的请求体
+     * @return 操作结果
      */
     @PutMapping
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> updateVenuesBatch(@RequestBody @Valid BatchUpdateVenueRequest request) {
-        if (ValidationUtils.isAllFieldsNull(request.getVenueData())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, "更新数据不能为空，至少需要提供一个要修改的字段"));
-        }
         log.info("开始批量更新 {} 个场所的信息...", request.getIds().length);
-
         Venue venueToUpdate = new Venue();
         BeanUtils.copyProperties(request.getVenueData(), venueToUpdate);
 
         int result = venueService.updateVenuesBatch(request.getIds(), venueToUpdate);
-
-        if (result > 0) {
-            log.info("成功批量更新 {} 条场所记录", result);
-            return ResponseEntity.ok(AjaxResult.success(String.format("成功更新 %d 条记录", result)));
-        } else {
-            log.warn("批量更新未影响任何记录, 可能提供的ID列表均无效");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(AjaxResult.error(HttpStatus.NOT_FOUND, Constants.BATCH_UPDATE_FAIL_NOT_FOUND));
+        if (result == 0) {
+            throw new IllegalArgumentException(Constants.BATCH_UPDATE_FAIL_NOT_FOUND);
         }
+        return ResponseEntity.ok(AjaxResult.success(String.format("成功更新 %d 条记录", result)));
     }
 
     /**
      * 获取指定场所在特定时间范围内的所有日程安排（用于日历视图）。
      *
      * @param venueId 场所ID
-     * @param start   日历视图的开始时间 (ISO 8601 格式, e.g., 2025-10-01T00:00:00)
+     * @param start   日历视图的开始时间 (ISO 8601 格式)
      * @param end     日历视图的结束时间
+     * @param auth    Spring Security 注入的认证信息
      * @return 适用于前端日历的事件列表
      */
     @GetMapping("/{venueId}/time-blocks")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getVenueSchedule(
             @PathVariable Long venueId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            Authentication auth) {
 
-        User currentUser = getCurrentUser();
+        User currentUser = ((LoginUser) auth.getPrincipal()).getUser();
         log.info("用户 '{}' 正在查询场所 '{}' 从 '{}' 到 '{}' 的日程安排", currentUser.getId(), venueId, start, end);
-        if (start == null) {
-            start = LocalDateTime.now();
-        }
-        if (end == null) {
-            end = start.plusMonths(1);
-        }
 
-        List<TimeBlock> timeBlocks = timeBlockService.findTimeBlocksForVenue(venueId, start, end);
-        if (timeBlocks.isEmpty()) {
-            return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, Collections.emptyList()));
-        }
-
-        List<Long> reservationIds = timeBlocks.stream()
-                .filter(tb -> "APPOINTMENT".equals(tb.getBlockType()) && tb.getReservationId() != null)
-                .map(TimeBlock::getReservationId)
-                .collect(Collectors.toList());
-
-        Map<Long, Reservation> reservationMap = reservationService.findReservationsByIds(reservationIds)
-                .stream()
-                .collect(Collectors.toMap(Reservation::getId, Function.identity()));
-
-        List<CalendarEventDTO> calendarEvents = timeBlocks.stream().map(tb -> {
-            CalendarEventDTO dto = new CalendarEventDTO();
-            dto.setId(tb.getId());
-            dto.setTitle(tb.getTitle());
-            dto.setStart(tb.getStartDatetime());
-            dto.setEnd(tb.getEndDatetime());
-            dto.setBlockType(tb.getBlockType());
-
-            boolean isOwned = false;
-            if ("APPOINTMENT".equals(tb.getBlockType()) && tb.getReservationId() != null) {
-                Reservation r = reservationMap.get(tb.getReservationId());
-                if (r != null && Objects.equals(r.getCreatorUserId(), currentUser.getId())) {
-                    isOwned = true;
-                }
-            }
-            dto.setOwnedByCurrentUser(isOwned);
-
-            return dto;
-        }).collect(Collectors.toList());
+        // 【重构核心】调用封装了所有复杂逻辑的 Service 方法
+        List<CalendarEventDTO> calendarEvents = venueService.getVenueScheduleForUser(venueId, start, end, currentUser);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, calendarEvents));
-    }
-
-    private User getCurrentUser() {
-        return ((LoginUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUser();
     }
 }

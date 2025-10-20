@@ -1,6 +1,8 @@
 package com.cqwu.cqwu_appointment_system.common.exception;
 
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
+import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
+import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 
 import java.util.Collection;
 
@@ -11,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -126,6 +129,37 @@ public class GlobalExceptionHandler {
     public AjaxResult handleQueryTimeoutException(QueryTimeoutException e) {
         log.error("数据访问超时，可能是数据库或缓存服务（如Redis）响应缓慢: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.SERVICE_UNAVAILABLE.value(), "服务暂时不可用，请稍后重试");
+    }
+
+    /**
+     * 处理自定义的预约时间冲突异常 (409 Conflict)
+     */
+    @ExceptionHandler(ReservationConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public AjaxResult handleReservationConflictException(ReservationConflictException e) {
+        log.warn("预约时间冲突: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.CONFLICT.value(), e.getMessage());
+    }
+
+    /**
+     * 处理自定义的权限不足异常 (403 Forbidden)
+     * 注意：这可以与 Spring Security 的 AccessDeniedException 共存，处理更具体的业务权限场景。
+     */
+    @ExceptionHandler(PermissionDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public AjaxResult handlePermissionDeniedException(PermissionDeniedException e) {
+        log.warn("业务权限不足: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.FORBIDDEN.value(), e.getMessage());
+    }
+
+    /**
+     * 处理 Spring Security 认证过程中抛出的异常
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public AjaxResult handleAuthenticationException(AuthenticationException e) {
+        log.warn("认证失败: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.UNAUTHORIZED.value(), "用户名或密码错误");
     }
 
     /**

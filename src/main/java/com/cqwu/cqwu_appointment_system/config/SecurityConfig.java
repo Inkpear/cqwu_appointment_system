@@ -16,62 +16,73 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
 import java.util.Arrays;
 
+/**
+ * @description Spring Security 的核心配置类。
+ *              负责定义安全策略、过滤器链、认证和授权规则。
+ */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity // 启用方法级别的安全注解，如 @PreAuthorize
 public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
 
+    /**
+     * 配置安全过滤器链，定义所有HTTP请求的安全处理规则。
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 1. 配置 CORS
+            // 配置CORS（跨域资源共享）
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             
-            // 2. 【核心】禁用 CSRF 保护，因为我们不再依赖 Cookie 进行认证
+            // 禁用CSRF保护，因为我们使用无状态的JWT，不依赖Cookie
             .csrf(csrf -> csrf.disable())
             
-            // 3. 保持 Session 管理策略为无状态
+            // 设置Session管理策略为无状态（STATELESS），不创建HttpSession
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             
-            // 4. 配置请求授权规则
+            // 配置HTTP请求的授权规则
             .authorizeHttpRequests(auth -> auth
-                // 放行 OPTIONS 预检请求 (这是一个好习惯，即使CORS配置简单也建议保留)
+                // 允许所有OPTIONS预检请求
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                // 明确放行认证相关的所有接口
+                // 公开访问认证相关的所有API端点
                 .requestMatchers("/api/auth/**").permitAll()
                 
-                // 其他所有请求都需要认证
+                // 除上述之外的所有其他请求都需要进行身份认证
                 .anyRequest().authenticated()
             )
             
-            // 5. 添加我们的 JWT 过滤器
+            // 将自定义的JWT认证过滤器添加到Spring Security的过滤器链中
+            // 它会在处理用户名密码认证的过滤器之前执行
             .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    /**
+     * 定义CORS配置源。
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 允许的前端来源 (生产环境请务必替换为您的前端域名)
+        // 【注意】生产环境应替换为具体的前端域名
         configuration.setAllowedOrigins(Arrays.asList("*")); 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*")); 
-        // 在 localStorage 模式下，allowCredentials 不是必须的了
-        // configuration.setAllowCredentials(true); 
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
+    /**
+     * 从AuthenticationConfiguration中获取AuthenticationManager的Bean实例。
+     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();

@@ -3,8 +3,8 @@ package com.cqwu.cqwu_appointment_system.component;
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.entity.*;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
-import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
+import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,36 +17,40 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * @description 定时任务组件，负责驱动预约申请的整个生命周期状态自动流转。
+ */
 @Component
 @Slf4j
 public class ReservationStatusUpdater {
 
     @Autowired
     private ReservationMapper reservationMapper;
+
     @Autowired
     private VenueMapper venueMapper;
-    @Autowired
-    private TimeBlockMapper timeBlockMapper;
+
     @Autowired
     private TimeBlockService timeBlockService;
 
+    @Autowired
+    private ReservationService reservationService;
+
     /**
-     * 每分钟执行一次，管理预约的整个生命周期。
+     * 主调度方法，每分钟执行一次，按顺序管理预约的各个生命周期阶段。
      */
-    @Scheduled(cron = "0 * * * * ?")
+    @Scheduled(cron = "0 * * * * ?") // 每分钟执行一次
     @Transactional
     public void manageReservationLifecycle() {
         log.info("【定时任务】开始管理预约生命周期...");
-
         processAutoApprovals();
         processActiveLifecycle();
         processExpired();
-
         log.info("【定时任务】预约生命周期管理完成。");
     }
 
     /**
-     * 处理所有 PENDING 的申请，包含自动审批的竞争逻辑。
+     * 筛选出所有符合自动审批条件的 PENDING。
      */
     private void processAutoApprovals() {
         ReservationExample example = new ReservationExample();
@@ -90,67 +94,35 @@ public class ReservationStatusUpdater {
     }
 
     /**
-     * 独立的事务方法，用于处理单个自动审批，确保竞争逻辑的实时性。
+     * 尝试对单个预约进行自动审批或拒绝。
+     * 
+     * @param reservation 待处理的预约实体
      */
-    @Transactional
     public void processSingleAutoApproval(ReservationWithBLOBs reservation) {
         Venue venue = venueMapper.selectByPrimaryKey(reservation.getVenueId());
 
         if (venue == null || !Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
             String reason = (venue == null) ? "关联的场所不存在" : "场所当前状态为'" + venue.getBaseStatus() + "'，不可预约";
-            rejectBySystem(reservation, reason);
+            reservationService.rejectBySystem(reservation, reason);
             return;
         }
 
         if (timeBlockService.isTimeSlotAvailable(reservation.getVenueId(), reservation.getStartDatetime(),
                 reservation.getEndDatetime())) {
-            approveBySystem(reservation);
+            reservationService.approveBySystem(reservation);
         } else {
-            rejectBySystem(reservation, "时间段已被占用，系统自动拒绝");
+            reservationService.rejectBySystem(reservation, "时间段已被占用，系统自动拒绝");
         }
     }
-
-    @Transactional
-    void approveBySystem(ReservationWithBLOBs reservation) {
-        TimeBlock timeBlock = new TimeBlock();
-        timeBlock.setVenueId(reservation.getVenueId());
-        timeBlock.setStartDatetime(reservation.getStartDatetime());
-        timeBlock.setEndDatetime(reservation.getEndDatetime());
-        timeBlock.setTitle(reservation.getTitle());
-        timeBlock.setBlockType(Constants.TimeBlockType.APPOINTMENT);
-        timeBlock.setReservationId(reservation.getId());
-        timeBlockMapper.insertSelective(timeBlock);
-
-        ReservationWithBLOBs update = new ReservationWithBLOBs();
-        update.setId(reservation.getId());
-        update.setTimeBlockId(timeBlock.getId());
-        update.setStatus(Constants.ReservationStatus.CONFIRMED);
-        update.setApproverUserId("SYSTEM");
-        update.setApprovalTime(LocalDateTime.now());
-        update.setAppointmentCode(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        reservationMapper.updateByPrimaryKeySelective(update);
-
-        log.info("【定时任务】已自动批准预约 ID: {}", reservation.getId());
-    }
-
-    @Transactional
-    void rejectBySystem(ReservationWithBLOBs reservation, String reason) {
-        ReservationWithBLOBs update = new ReservationWithBLOBs();
-        update.setId(reservation.getId());
-        update.setStatus(Constants.ReservationStatus.REJECTED);
-        update.setApproverUserId("SYSTEM");
-        update.setApprovalTime(LocalDateTime.now());
-        update.setApprovalComment(reason);
-        reservationMapper.updateByPrimaryKeySelective(update);
-        log.warn("【定时任务】因 '{}'，已自动拒绝预约 ID: {}", reason, reservation.getId());
-    }
-
+ 
     /**
-     * 处理所有活跃的生命周期状态转换 (CONFIRMED -> IN_PROGRESS -> COMPLETED)
+     * 批量处理活跃预约的状态推进。
+     * (CONFIRMED -> IN_PROGRESS, IN_PROGRESS -> COMPLETED)
      */
     private void processActiveLifecycle() {
         LocalDateTime now = LocalDateTime.now();
 
+        // 1. 将已开始的 CONFIRMED 预约更新为 IN_PROGRESS
         ReservationExample toInProgressExample = new ReservationExample();
         toInProgressExample.createCriteria()
                 .andStatusEqualTo(Constants.ReservationStatus.CONFIRMED)
@@ -164,6 +136,7 @@ public class ReservationStatusUpdater {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
         }
 
+        // 2. 将已结束的 CONFIRMED 或 IN_PROGRESS 预约更新为 COMPLETED
         ReservationExample toCompletedExample = new ReservationExample();
         toCompletedExample.createCriteria()
                 .andStatusIn(
@@ -179,7 +152,7 @@ public class ReservationStatusUpdater {
     }
 
     /**
-     * 处理已过期的 PENDING 申请
+     * 批量处理已过期的 PENDING 申请，将其状态更新为 EXPIRED。
      */
     private void processExpired() {
         LocalDateTime now = LocalDateTime.now();

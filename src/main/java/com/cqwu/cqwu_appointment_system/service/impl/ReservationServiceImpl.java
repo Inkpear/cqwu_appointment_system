@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -30,6 +31,9 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * @description 预约服务实现类，负责处理所有预约相关的业务逻辑。
+ */
 @Service
 @Slf4j
 public class ReservationServiceImpl implements ReservationService {
@@ -49,6 +53,18 @@ public class ReservationServiceImpl implements ReservationService {
     @Autowired
     private VenueMapper venueMapper;
 
+    /**
+     * 创建一个新的预约申请。
+     * 此方法遵循“竞争”原则，只在数据库中创建一条 PENDING 记录，
+     * 不会创建 TimeBlock 或检查物理时间冲突。
+     *
+     * @param reservation 包含预约信息的实体对象
+     * @param currentUser 当前操作的用户实体
+     * @param venue       预约的场地实体
+     * @return 创建成功并持久化后的预约实体
+     * @throws IllegalArgumentException  如果场地不可用、时间不合法或超过最大预约时长
+     * @throws PermissionDeniedException 如果用户类型不满足场地分类的预约规则
+     */
     @Override
     @Transactional
     public ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue) {
@@ -56,7 +72,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         if (venue == null)
             throw new IllegalArgumentException("指定的场所不存在");
-        
+
         if (venue == null || !Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
             String reason = (venue == null) ? "关联的场所不存在" : "场所当前状态为'" + venue.getBaseStatus() + "'，不可预约";
             throw new IllegalArgumentException(reason);
@@ -82,6 +98,17 @@ public class ReservationServiceImpl implements ReservationService {
         return reservation;
     }
 
+    /**
+     * 取消一个预约申请。
+     * 允许用户取消自己的 PENDING 或 CONFIRMED 状态的预约。
+     * 管理员可以取消任何 PENDING 或 CONFIRMED 状态的预约。
+     * 如果预约已批准 (CONFIRMED)，此操作会同步删除关联的 TimeBlock。
+     *
+     * @param request 包含预约ID和当前用户信息的请求DTO
+     * @return 更新为 CANCELLED 状态的预约实体
+     * @throws IllegalStateException     如果预约状态不合法，无法取消
+     * @throws PermissionDeniedException 如果用户没有权限取消此预约
+     */
     @Override
     @Transactional
     public ReservationWithBLOBs cancelReservation(UpdateReservationStatusRequest request) {
@@ -116,6 +143,16 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
+    /**
+     * 批准一个预约申请。
+     * 这是创建 TimeBlock 并占用物理时间的唯一入口。
+     * 在批准的瞬间，会进行最终的时间冲突检查。
+     *
+     * @param request 包含预约ID、批准意见和管理员信息的请求DTO
+     * @return 更新为 CONFIRMED 状态的预约实体
+     * @throws IllegalStateException        如果预约状态不是PENDING，或关联场所不可用，或预约已过期
+     * @throws ReservationConflictException 如果该时间段已被占用
+     */
     @Override
     @Transactional
     public ReservationWithBLOBs approveReservation(UpdateReservationStatusRequest request) {
@@ -163,6 +200,13 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
+    /**
+     * 驳回一个预约申请。
+     *
+     * @param request 包含预约ID、驳回理由和管理员信息的请求DTO
+     * @return 更新为 REJECTED 状态的预约实体
+     * @throws IllegalStateException 如果预约状态不是PENDING
+     */
     @Override
     @Transactional
     public ReservationWithBLOBs rejectReservation(UpdateReservationStatusRequest request) {
@@ -185,11 +229,23 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
+    /**
+     * 根据ID查找预约信息。
+     * 
+     * @param reservationId 预约ID
+     * @return 预约实体，如果不存在则返回 null
+     */
     @Override
     public ReservationWithBLOBs findReservationById(Long reservationId) {
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
+    /**
+     * 根据预约码查找预约信息。
+     * 
+     * @param code 预约码
+     * @return 预约实体，如果不存在则返回 null
+     */
     @Override
     public ReservationWithBLOBs findReservationByCode(String code) {
         if (StringUtils.isBlank(code))
@@ -199,6 +255,12 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationMapper.selectByExampleWithBLOBs(example).stream().findFirst().orElse(null);
     }
 
+    /**
+     * 根据查询条件分页搜索预约列表。
+     * 
+     * @param query 包含分页和过滤条件的查询对象
+     * @return Spring Data Page 格式的预约列表
+     */
     @Override
     public Page<ReservationWithBLOBs> searchReservations(ReservationQuery query) {
         Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
@@ -225,6 +287,12 @@ public class ReservationServiceImpl implements ReservationService {
         return new PageImpl<>(list, PageRequest.of(page, size), pageInfo.getTotal());
     }
 
+    /**
+     * 根据ID列表批量查找预约信息。
+     * 
+     * @param ids 预约ID列表
+     * @return 预约实体列表
+     */
     @Override
     public List<ReservationWithBLOBs> findReservationsByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -233,6 +301,58 @@ public class ReservationServiceImpl implements ReservationService {
         ReservationExample example = new ReservationExample();
         example.createCriteria().andIdIn(ids);
         return reservationMapper.selectByExampleWithBLOBs(example);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ReservationWithBLOBs approveBySystem(ReservationWithBLOBs reservation) {
+        log.info("【系统】正在自动批准预约 ID: {}", reservation.getId());
+
+        // 1. 创建 TimeBlock 占用物理时间
+        TimeBlock timeBlock = new TimeBlock();
+        timeBlock.setVenueId(reservation.getVenueId());
+        timeBlock.setStartDatetime(reservation.getStartDatetime());
+        timeBlock.setEndDatetime(reservation.getEndDatetime());
+        timeBlock.setTitle(reservation.getTitle());
+        timeBlock.setBlockType(Constants.TimeBlockType.APPOINTMENT);
+        timeBlock.setReservationId(reservation.getId());
+        timeBlockMapper.insertSelective(timeBlock);
+
+        // 2. 更新预约状态为 CONFIRMED
+        ReservationWithBLOBs update = new ReservationWithBLOBs();
+        update.setId(reservation.getId());
+        update.setTimeBlockId(timeBlock.getId());
+        update.setStatus(Constants.ReservationStatus.CONFIRMED);
+        update.setApproverUserId("SYSTEM");
+        update.setApprovalTime(LocalDateTime.now());
+        update.setAppointmentCode(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+        reservationMapper.updateByPrimaryKeySelective(update);
+
+        log.info("【系统】已自动批准预约 ID: {}", reservation.getId());
+        return reservationMapper.selectByPrimaryKey(reservation.getId());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ReservationWithBLOBs rejectBySystem(ReservationWithBLOBs reservation, String reason) {
+        log.warn("【系统】因 '{}'，正在自动拒绝预约 ID: {}", reason, reservation.getId());
+
+        ReservationWithBLOBs update = new ReservationWithBLOBs();
+        update.setId(reservation.getId());
+        update.setStatus(Constants.ReservationStatus.REJECTED);
+        update.setApproverUserId("SYSTEM");
+        update.setApprovalTime(LocalDateTime.now());
+        update.setApprovalComment(reason);
+        reservationMapper.updateByPrimaryKeySelective(update);
+
+        log.warn("【系统】已自动拒绝预约 ID: {}", reservation.getId());
+        return reservationMapper.selectByPrimaryKey(reservation.getId());
     }
 
     private String generateAppointmentCode() {

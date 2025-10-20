@@ -38,36 +38,47 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Autowired
     private RedisCache redisCache;
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<String, String> login(String userId) {
         log.info("开始处理用户 '{}' 的登录请求...", userId);
-        // 这里需要补充CAS相关代码
+        // TODO: 此处应为与学校统一认证系统（如CAS）的集成点。
+        // 当前为开发模式，直接加载用户信息。
         final UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
         LoginUser loginUser = (LoginUser) userDetails;
         User user = loginUser.getUser();
 
+        // 1. 创建JWT载荷
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole());
 
+        // 2. 生成双令牌
         String accessToken = JwtUtils.createAccessToken(claims, jwtProperties);
         String refreshToken = JwtUtils.createRefreshToken(user.getId(), jwtProperties);
 
+        // 3. 将Refresh Token存入Redis，并设置与Token本身相同的过期时间
         String redisKey = Constants.REFRESH_TOKEN_KEY_PREFIX + user.getId();
         redisCache.setCacheObject(redisKey, refreshToken,
                 jwtProperties.getRefreshTokenExpireTime().toMillis(), TimeUnit.MILLISECONDS);
-        
+
         log.info("用户 '{}' 登录成功，已生成并存储 Refresh Token。", userId);
 
+        // 4. 更新最后登录时间
+        userService.updateLoginTimeById(userId);
+
+        // 5. 返回双令牌
         Map<String, String> tokens = new HashMap<>();
         tokens.put("accessToken", accessToken);
         tokens.put("refreshToken", refreshToken);
-
-        userService.updateLoginTimeById(userId);
-
         return tokens;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Map<String, String> refreshToken(String refreshToken) {
         log.info("开始处理 Access Token 刷新请求...");
@@ -75,25 +86,25 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         String userId = null;
         try {
+            // 1. 解析 Refresh Token
             Claims claims = JwtUtils.parseJwt(refreshToken, jwtProperties.getSecret());
             userId = claims.get("userId", String.class);
             log.info("从 Refresh Token 中解析出 UserId: '{}'。", userId);
 
+            // 2. 【核心安全校验】校验 Redis 中存储的 Token 是否与传入的一致
             String redisKey = Constants.REFRESH_TOKEN_KEY_PREFIX + userId;
             String storedToken = redisCache.getCacheObject(redisKey);
-
             if (storedToken == null || !storedToken.equals(refreshToken)) {
                 log.warn("无效的 Refresh Token: Redis 中不存在或不匹配。UserId: {}", userId);
                 throw new JwtException("Refresh Token 无效或已过期");
             }
 
+            // 3. 校验通过，加载用户信息，生成新的 Access Token
             UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
             User user = ((LoginUser) userDetails).getUser();
-            
             Map<String, Object> newClaims = new HashMap<>();
             newClaims.put("userId", user.getId());
             newClaims.put("role", user.getRole());
-
             String newAccessToken = JwtUtils.createAccessToken(newClaims, jwtProperties);
 
             Map<String, String> tokens = new HashMap<>();
@@ -104,7 +115,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         } catch (JwtException e) {
             log.warn("Refresh Token 解析或验证失败: {}, UserId (if available): {}", e.getMessage(), userId);
-            // 如果能解析出 userId，则主动删除可能存在的脏数据
+            // 如果能解析出 userId，则主动删除可能存在的脏数据，防止被盗用的Token反复尝试
             if (userId != null) {
                 redisCache.deleteObject(Constants.REFRESH_TOKEN_KEY_PREFIX + userId);
             }
@@ -112,6 +123,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void logout(String userId) {
         log.info("开始处理用户 '{}' 的退出登录请求...", userId);

@@ -104,6 +104,18 @@ public class AjaxResult extends HashMap<String, Object>
     }
 
     /**
+     * 返回资源创建成功的消息
+     * 
+     * @param msg 返回内容
+     * @param data 数据对象
+     * @return 成功消息 (code: 201)
+     */
+    public static AjaxResult created(String msg, Object data)
+    {
+        return new AjaxResult(HttpStatus.CREATED, msg, data);
+    }
+
+    /**
      * 返回警告消息
      *
      * @param msg 返回内容

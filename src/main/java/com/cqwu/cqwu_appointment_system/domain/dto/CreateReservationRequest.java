@@ -7,6 +7,9 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import java.time.LocalDateTime;
 
+/**
+ * @description 用于创建新预约申请的请求体 DTO。
+ */
 @Data
 public class CreateReservationRequest {
 
@@ -28,5 +31,5 @@ public class CreateReservationRequest {
     @NotBlank(message = "预约理由不能为空")
     @Size(max = 65535, message = "预约事由内容过长")
     private String purpose;
-    
+
 }
