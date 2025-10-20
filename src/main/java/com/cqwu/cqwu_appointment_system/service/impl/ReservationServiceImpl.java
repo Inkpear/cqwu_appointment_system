@@ -238,12 +238,9 @@ public class ReservationServiceImpl implements ReservationService {
         return r;
     }
 
-    /**
-     * 【新增】私有辅助方法，用于检查分类的准入规则。
-     */
     private void checkCategoryPermissions(User user, Venue venue) {
         if (venue.getCategoryId() == null) {
-            return; // 没有分类，无限制
+            return;
         }
 
         VenueCategoryRuleExample ruleExample = new VenueCategoryRuleExample();
@@ -251,10 +248,9 @@ public class ReservationServiceImpl implements ReservationService {
 
         List<VenueCategoryRule> rules = venueCategoryRuleMapper.selectByExample(ruleExample);
         if (rules.isEmpty()) {
-            return; // 分类存在，但没有定义任何准入规则，对所有人开放
+            return;
         }
 
-        // 如果存在规则，则检查当前用户的类型是否在允许的列表中
         boolean isAllowed = rules.stream()
                 .anyMatch(rule -> rule.getAllowedUserType().equals(user.getUserType()));
 
