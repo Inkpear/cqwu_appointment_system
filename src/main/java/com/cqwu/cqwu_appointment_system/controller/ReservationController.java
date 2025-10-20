@@ -61,11 +61,14 @@ public class ReservationController {
             reservationToCreate.setStartDatetime(request.getStartDatetime());
             reservationToCreate.setEndDatetime(request.getEndDatetime());
 
-            ReservationWithBLOBs createdReservation = reservationService.createReservation(reservationToCreate);
-            
+            ReservationWithBLOBs createdReservation = reservationService.createReservation(reservationToCreate,
+                    currentUser, venue);
+
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new AjaxResult(HttpStatus.CREATED, "预约申请已提交，等待审批", createdReservation));
-                    
+        } catch (PermissionDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(AjaxResult.error(HttpStatus.FORBIDDEN, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(AjaxResult.error(HttpStatus.BAD_REQUEST, e.getMessage()));
@@ -98,11 +101,13 @@ public class ReservationController {
      */
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> rejectReservation(@PathVariable Long id, @RequestBody @Valid RejectReservationRequest request) {
+    public ResponseEntity<AjaxResult> rejectReservation(@PathVariable Long id,
+            @RequestBody @Valid RejectReservationRequest request) {
         User adminUser = getCurrentUser();
         log.info("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), id);
         try {
-            UpdateReservationStatusRequest updateRequest = UpdateReservationStatusRequest.forRejection(id, adminUser, request.getReason());
+            UpdateReservationStatusRequest updateRequest = UpdateReservationStatusRequest.forRejection(id, adminUser,
+                    request.getReason());
             reservationService.rejectReservation(updateRequest);
             return ResponseEntity.ok(AjaxResult.success("申请已拒绝"));
         } catch (IllegalArgumentException e) {
@@ -162,11 +167,12 @@ public class ReservationController {
     public ResponseEntity<AjaxResult> searchReservations(ReservationQuery query) {
         User currentUser = getCurrentUser();
         log.info("用户 '{}' 正在查询预约列表, 查询参数: {}", currentUser.getId(), query);
-        
-        if (!Arrays.asList(Constants.UserRoleType.ROLE_ADMIN, Constants.UserRoleType.ROLE_ROOT).contains(currentUser.getRole())) {
+
+        if (!Arrays.asList(Constants.UserRoleType.ROLE_ADMIN, Constants.UserRoleType.ROLE_ROOT)
+                .contains(currentUser.getRole())) {
             query.setCreatorUserId(currentUser.getId());
         }
-        
+
         Page<ReservationWithBLOBs> pageOfEntities = reservationService.searchReservations(query);
         PageDTO<ReservationWithBLOBs> pageOfDtos = PageDTO.fromPage(pageOfEntities);
 

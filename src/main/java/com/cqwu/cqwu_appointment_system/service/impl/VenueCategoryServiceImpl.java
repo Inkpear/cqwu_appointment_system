@@ -2,8 +2,10 @@ package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.entity.VenueCategory;
 import com.cqwu.cqwu_appointment_system.entity.VenueCategoryExample;
+import com.cqwu.cqwu_appointment_system.entity.VenueCategoryRuleExample;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryMapper;
+import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.VenueCategoryService;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,9 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
 
     @Autowired
     private VenueMapper venueMapper;
+
+    @Autowired
+    private VenueCategoryRuleMapper venueCategoryRuleMapper;
 
     @Override
     @Transactional
@@ -45,6 +50,13 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
         example.createCriteria().andCategoryIdEqualTo(id);
         if (venueMapper.countByExample(example) > 0) {
             throw new IllegalStateException("无法删除，仍有场所正在使用此分类");
+        }
+
+        VenueCategoryRuleExample ruleExample = new VenueCategoryRuleExample();
+        ruleExample.createCriteria().andCategoryIdEqualTo(id);
+        int deletedRules = venueCategoryRuleMapper.deleteByExample(ruleExample);
+        if (deletedRules > 0) {
+            log.info("已级联删除了 {} 条关联的准入规则", deletedRules);
         }
 
         return venueCategoryMapper.deleteByPrimaryKey(id);

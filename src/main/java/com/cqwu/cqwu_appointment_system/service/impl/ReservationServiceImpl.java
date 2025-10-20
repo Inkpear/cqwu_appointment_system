@@ -11,6 +11,7 @@ import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
 import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
+import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
@@ -41,15 +42,18 @@ public class ReservationServiceImpl implements ReservationService {
     private TimeBlockMapper timeBlockMapper;
     @Autowired
     private TimeBlockService timeBlockService;
+    @Autowired
+    private VenueCategoryRuleMapper venueCategoryRuleMapper;
 
     @Override
     @Transactional
-    public ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation) {
+    public ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue) {
         log.info("用户 '{}' 正在提交新预约申请...", reservation.getCreatorUserId());
 
-        Venue venue = venueMapper.selectByPrimaryKey(reservation.getVenueId());
         if (venue == null)
             throw new IllegalArgumentException("指定的场所不存在");
+
+        checkCategoryPermissions(currentUser, venue);
 
         ValidationUtils.requireStartBeforeEnd(reservation.getStartDatetime(), reservation.getEndDatetime(),
                 "结束时间必须晚于开始时间");
@@ -232,5 +236,30 @@ public class ReservationServiceImpl implements ReservationService {
             throw new IllegalStateException("该申请当前状态为 '" + r.getStatus() + "', 无法进行此操作");
         }
         return r;
+    }
+
+    /**
+     * 【新增】私有辅助方法，用于检查分类的准入规则。
+     */
+    private void checkCategoryPermissions(User user, Venue venue) {
+        if (venue.getCategoryId() == null) {
+            return; // 没有分类，无限制
+        }
+
+        VenueCategoryRuleExample ruleExample = new VenueCategoryRuleExample();
+        ruleExample.createCriteria().andCategoryIdEqualTo(venue.getCategoryId());
+
+        List<VenueCategoryRule> rules = venueCategoryRuleMapper.selectByExample(ruleExample);
+        if (rules.isEmpty()) {
+            return; // 分类存在，但没有定义任何准入规则，对所有人开放
+        }
+
+        // 如果存在规则，则检查当前用户的类型是否在允许的列表中
+        boolean isAllowed = rules.stream()
+                .anyMatch(rule -> rule.getAllowedUserType().equals(user.getUserType()));
+
+        if (!isAllowed) {
+            throw new PermissionDeniedException("您的用户类型不符合该场所分类的预约要求");
+        }
     }
 }

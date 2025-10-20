@@ -43,7 +43,11 @@
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table> -->
 
-        <table tableName="reservations" domainObjectName="Reservation">
+        <!-- <table tableName="reservations" domainObjectName="Reservation">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table> -->
+        
+        <table tableName="venue_category_rules" domainObjectName="VenueCategoryRule">
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table>
 

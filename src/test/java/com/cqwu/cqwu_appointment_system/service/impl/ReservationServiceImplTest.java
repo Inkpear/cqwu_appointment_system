@@ -37,7 +37,7 @@ class ReservationServiceImplTest {
     private Venue testVenue;
     private User testUser;
     private User adminUser;
-    private User rootUser; // 新增 ROOT 用户
+    private User rootUser;
     private final LocalDateTime tomorrow = LocalDateTime.now().plusDays(1).withMinute(0).withSecond(0).withNano(0);
 
     @BeforeEach
@@ -81,7 +81,7 @@ class ReservationServiceImplTest {
         reservation.setStartDatetime(tomorrow.withHour(10));
         reservation.setEndDatetime(tomorrow.withHour(11));
 
-        ReservationWithBLOBs result = reservationService.createReservation(reservation);
+        ReservationWithBLOBs result = reservationService.createReservation(reservation, testUser, testVenue);
 
         assertNotNull(result);
         assertEquals(Constants.ReservationStatus.PENDING, result.getStatus());
@@ -180,7 +180,7 @@ class ReservationServiceImplTest {
         reservation.setTitle("Test Title");
         reservation.setStartDatetime(start);
         reservation.setEndDatetime(end);
-        return reservationService.createReservation(reservation);
+        return reservationService.createReservation(reservation, testUser, testVenue);
     }
 
     private TimeBlock createTimeBlock(LocalDateTime start, LocalDateTime end) {
