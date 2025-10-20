@@ -12,6 +12,7 @@ import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
+import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.github.pagehelper.PageHelper;
@@ -45,6 +46,9 @@ public class ReservationServiceImpl implements ReservationService {
     @Autowired
     private VenueCategoryRuleMapper venueCategoryRuleMapper;
 
+    @Autowired
+    private VenueMapper venueMapper;
+
     @Override
     @Transactional
     public ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue) {
@@ -52,6 +56,11 @@ public class ReservationServiceImpl implements ReservationService {
 
         if (venue == null)
             throw new IllegalArgumentException("指定的场所不存在");
+        
+        if (venue == null || !Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
+            String reason = (venue == null) ? "关联的场所不存在" : "场所当前状态为'" + venue.getBaseStatus() + "'，不可预约";
+            throw new IllegalArgumentException(reason);
+        }
 
         checkCategoryPermissions(currentUser, venue);
 
@@ -116,10 +125,16 @@ public class ReservationServiceImpl implements ReservationService {
 
         ReservationWithBLOBs reservation = findAndCheckPendingReservation(reservationId);
 
+        Venue venue = venueMapper.selectByPrimaryKey(reservation.getVenueId());
+        if (venue == null) {
+            throw new IllegalStateException("关联的场所不存在，无法批准");
+        }
+        if (!Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
+            throw new IllegalStateException("场所当前状态为'" + venue.getBaseStatus() + "'，无法批准");
+        }
         if (reservation.getStartDatetime().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("该预约的开始时间已过，无法批准");
         }
-
         if (!timeBlockService.isTimeSlotAvailable(reservation.getVenueId(), reservation.getStartDatetime(),
                 reservation.getEndDatetime())) {
             throw new ReservationConflictException("无法批准，该时间段已被占用");

@@ -37,11 +37,11 @@ public class ReservationStatusUpdater {
     @Transactional
     public void manageReservationLifecycle() {
         log.info("【定时任务】开始管理预约生命周期...");
-        
+
         processAutoApprovals();
         processActiveLifecycle();
         processExpired();
-        
+
         log.info("【定时任务】预约生命周期管理完成。");
     }
 
@@ -90,11 +90,20 @@ public class ReservationStatusUpdater {
     }
 
     /**
-     *  独立的事务方法，用于处理单个自动审批，确保竞争逻辑的实时性。
+     * 独立的事务方法，用于处理单个自动审批，确保竞争逻辑的实时性。
      */
     @Transactional
     public void processSingleAutoApproval(ReservationWithBLOBs reservation) {
-        if (timeBlockService.isTimeSlotAvailable(reservation.getVenueId(), reservation.getStartDatetime(), reservation.getEndDatetime())) {
+        Venue venue = venueMapper.selectByPrimaryKey(reservation.getVenueId());
+
+        if (venue == null || !Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
+            String reason = (venue == null) ? "关联的场所不存在" : "场所当前状态为'" + venue.getBaseStatus() + "'，不可预约";
+            rejectBySystem(reservation, reason);
+            return;
+        }
+
+        if (timeBlockService.isTimeSlotAvailable(reservation.getVenueId(), reservation.getStartDatetime(),
+                reservation.getEndDatetime())) {
             approveBySystem(reservation);
         } else {
             rejectBySystem(reservation, "时间段已被占用，系统自动拒绝");
@@ -141,13 +150,13 @@ public class ReservationStatusUpdater {
      */
     private void processActiveLifecycle() {
         LocalDateTime now = LocalDateTime.now();
-        
+
         ReservationExample toInProgressExample = new ReservationExample();
         toInProgressExample.createCriteria()
-            .andStatusEqualTo(Constants.ReservationStatus.CONFIRMED)
-            .andStartDatetimeLessThanOrEqualTo(now)
-            .andEndDatetimeGreaterThan(now);
-            
+                .andStatusEqualTo(Constants.ReservationStatus.CONFIRMED)
+                .andStartDatetimeLessThanOrEqualTo(now)
+                .andEndDatetimeGreaterThan(now);
+
         ReservationWithBLOBs inProgressUpdate = new ReservationWithBLOBs();
         inProgressUpdate.setStatus(Constants.ReservationStatus.IN_PROGRESS);
         int inProgressCount = reservationMapper.updateByExampleSelective(inProgressUpdate, toInProgressExample);
@@ -157,9 +166,10 @@ public class ReservationStatusUpdater {
 
         ReservationExample toCompletedExample = new ReservationExample();
         toCompletedExample.createCriteria()
-            .andStatusIn(Arrays.asList(Constants.ReservationStatus.CONFIRMED, Constants.ReservationStatus.IN_PROGRESS))
-            .andEndDatetimeLessThan(now);
-        
+                .andStatusIn(
+                        Arrays.asList(Constants.ReservationStatus.CONFIRMED, Constants.ReservationStatus.IN_PROGRESS))
+                .andEndDatetimeLessThan(now);
+
         ReservationWithBLOBs completedUpdate = new ReservationWithBLOBs();
         completedUpdate.setStatus(Constants.ReservationStatus.COMPLETED);
         int completedCount = reservationMapper.updateByExampleSelective(completedUpdate, toCompletedExample);
@@ -173,12 +183,12 @@ public class ReservationStatusUpdater {
      */
     private void processExpired() {
         LocalDateTime now = LocalDateTime.now();
-        
+
         ReservationExample example = new ReservationExample();
         example.createCriteria()
-            .andStatusEqualTo(Constants.ReservationStatus.PENDING)
-            .andStartDatetimeLessThan(now);
-            
+                .andStatusEqualTo(Constants.ReservationStatus.PENDING)
+                .andStartDatetimeLessThan(now);
+
         ReservationWithBLOBs update = new ReservationWithBLOBs();
         update.setStatus(Constants.ReservationStatus.EXPIRED);
         int count = reservationMapper.updateByExampleSelective(update, example);
