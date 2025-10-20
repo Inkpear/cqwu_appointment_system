@@ -6,6 +6,7 @@ import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
+import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 
@@ -25,6 +26,7 @@ import org.springframework.util.Assert;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Slf4j
@@ -32,6 +34,9 @@ public class VenueServiceImpl implements VenueService {
 
     @Autowired
     private VenueMapper venueMapper;
+
+    @Autowired
+    private VenueCategoryMapper venueCategoryMapper;
 
     /**
      * 根据主键ID查询场所信息
@@ -72,6 +77,8 @@ public class VenueServiceImpl implements VenueService {
             return 0;
         }
 
+        validateCategoryId(venue.getCategoryId());
+
         LocalTime finalOpenTime = venue.getOpenTime() != null ? venue.getOpenTime()
                 : existingVenue.getOpenTime();
         LocalTime finalCloseTime = venue.getCloseTime() != null ? venue.getCloseTime()
@@ -102,6 +109,8 @@ public class VenueServiceImpl implements VenueService {
         Assert.notEmpty(venues, "要批量添加的场所列表不能为空");
 
         for (Venue venue : venues) {
+            validateCategoryId(venue.getCategoryId());
+
             ValidationUtils.requireStartBeforeEnd(
                     venue.getOpenTime(),
                     venue.getCloseTime(),
@@ -146,40 +155,28 @@ public class VenueServiceImpl implements VenueService {
      * @param query 查询条件
      * @return 分页后的场所列表
      */
-    @Override
+        @Override
     public Page<Venue> searchVenues(VenueQuery query) {
         log.info("开始根据条件分页查询场所, 查询参数: {}", query);
 
         Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
         Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
-
         PageHelper.startPage(page + 1, size);
 
         VenueExample example = new VenueExample();
         VenueExample.Criteria criteria = example.createCriteria();
 
-        if (StringUtils.hasText(query.getName())) {
-            criteria.andNameLike("%" + query.getName() + "%");
-        }
+        if (StringUtils.hasText(query.getName())) criteria.andNameLike("%" + query.getName() + "%");
+        if (StringUtils.hasText(query.getBaseStatus())) criteria.andBaseStatusEqualTo(query.getBaseStatus());
+        if (StringUtils.hasText(query.getRealtimeStatus())) criteria.andRealtimeStatusEqualTo(query.getRealtimeStatus());
+        if (StringUtils.hasText(query.getLocation())) criteria.andLocationLike("%" + query.getLocation() + "%");
+        
+        if (!Objects.isNull(query.getFloor())) criteria.andFloorEqualTo(query.getFloor());
+        if (!Objects.isNull(query.getRequiresApproval())) criteria.andRequiresApprovalEqualTo(query.getRequiresApproval());
+        if (!Objects.isNull(query.getCategoryId()))  criteria.andCategoryIdEqualTo(query.getCategoryId());
 
-        if (StringUtils.hasText(query.getBaseStatus())) {
-            criteria.andBaseStatusEqualTo(query.getBaseStatus());
-        }
-        if (StringUtils.hasText(query.getRealtimeStatus())) {
-            criteria.andRealtimeStatusEqualTo(query.getRealtimeStatus());
-        }
+        List<Venue> venues = venueMapper.selectByExampleWithBLOBs(example);
 
-        if (StringUtils.hasText(query.getLocation())) {
-            criteria.andLocationLike("%" + query.getLocation() + "%");
-        }
-        if (query.getFloor() != null) {
-            criteria.andFloorEqualTo(query.getFloor());
-        }
-        if (query.getRequiresApproval() != null) {
-            criteria.andRequiresApprovalEqualTo(query.getRequiresApproval());
-        }
-
-        List<Venue> venues = venueMapper.selectByExample(example);
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
 
         log.info("查询完成, 共找到 {} 条数据", pageInfo.getTotal());
@@ -208,6 +205,7 @@ public class VenueServiceImpl implements VenueService {
         log.info("管理员开始批量更新 {} 个场所的信息", ids.length);
         Assert.notEmpty(ids, "要更新的ID列表不能为空");
         Assert.notNull(venueUpdateData, "更新数据不能为空");
+        validateCategoryId(venueUpdateData.getCategoryId());
 
         for (Long id : ids) {
             Venue existingVenue = venueMapper.selectByPrimaryKey(id);
@@ -232,5 +230,17 @@ public class VenueServiceImpl implements VenueService {
             log.warn("批量更新未影响任何记录, 可能ID列表匹配不到数据");
         }
         return result;
+    }
+
+    /**
+     *  私有辅助方法，用于校验 CategoryID 的存在性
+     */
+    private void validateCategoryId(Long categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+        if (venueCategoryMapper.selectByPrimaryKey(categoryId) == null) {
+            throw new IllegalArgumentException("操作失败，ID为 " + categoryId + " 的场所分类不存在");
+        }
     }
 }

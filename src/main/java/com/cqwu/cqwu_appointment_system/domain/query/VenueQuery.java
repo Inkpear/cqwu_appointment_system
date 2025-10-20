@@ -15,4 +15,5 @@ public class VenueQuery {
     private Boolean requiresApproval;
     private String baseStatus;   
     private String realtimeStatus; 
+    private Long categoryId;
 }

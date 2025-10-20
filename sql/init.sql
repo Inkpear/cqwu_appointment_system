@@ -118,3 +118,16 @@ CREATE TABLE
   ) ENGINE = InnoDB CHARACTER
 SET
   = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户信息表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for venue_category_rules
+-- ----------------------------
+CREATE TABLE
+  `venue_category_rules` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `category_id` BIGINT NOT NULL COMMENT '关联到 venue_category 表',
+    `allowed_user_type` TINYINT NOT NULL COMMENT '允许的用户类型 (1:学生, 2:教师, 0:其他)',
+    PRIMARY KEY (`id`),
+    INDEX `idx_category_id` (`category_id`),
+    UNIQUE INDEX `uk_category_user_type` (`category_id`, `allowed_user_type`)
+  ) ENGINE = InnoDB COMMENT = '场所分类准入规则表';

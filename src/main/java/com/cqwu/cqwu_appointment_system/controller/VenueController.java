@@ -47,6 +47,7 @@ public class VenueController {
 
     @Autowired
     private TimeBlockService timeBlockService;
+
     @Autowired
     private ReservationService reservationService;
 
@@ -115,6 +116,7 @@ public class VenueController {
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id,
             @RequestBody @Valid UpdateVenueRequest updateRequest) {
+
         if (ValidationUtils.isAllFieldsNull(updateRequest)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(AjaxResult.error(HttpStatus.BAD_REQUEST, "更新数据不能为空，至少需要提供一个要修改的字段"));

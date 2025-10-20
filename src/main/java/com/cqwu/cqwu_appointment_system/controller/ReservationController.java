@@ -67,8 +67,8 @@ public class ReservationController {
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new AjaxResult(HttpStatus.CREATED, "预约申请已提交，等待审批", createdReservation));
         } catch (PermissionDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(AjaxResult.error(HttpStatus.FORBIDDEN, e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(AjaxResult.error(HttpStatus.BAD_REQUEST, e.getMessage()));
@@ -135,8 +135,8 @@ public class ReservationController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(AjaxResult.error(HttpStatus.NOT_FOUND, e.getMessage()));
         } catch (PermissionDeniedException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(AjaxResult.error(HttpStatus.FORBIDDEN, e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AjaxResult.error(HttpStatus.BAD_REQUEST, e.getMessage()));
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(AjaxResult.error(HttpStatus.BAD_REQUEST, e.getMessage()));
