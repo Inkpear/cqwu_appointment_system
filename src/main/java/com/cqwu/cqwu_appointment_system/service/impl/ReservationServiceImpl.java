@@ -12,7 +12,6 @@ import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
-import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.github.pagehelper.PageHelper;
@@ -36,12 +35,13 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Autowired
     private ReservationMapper reservationMapper;
-    @Autowired
-    private VenueMapper venueMapper;
+
     @Autowired
     private TimeBlockMapper timeBlockMapper;
+
     @Autowired
     private TimeBlockService timeBlockService;
+
     @Autowired
     private VenueCategoryRuleMapper venueCategoryRuleMapper;
 
