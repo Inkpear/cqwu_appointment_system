@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class RejectReservationRequest {
-    @NotBlank(message = "拒绝的理由不能为空")
-    private String reason;
+public class UpdateReservationRequest {
+    @NotBlank(message = "审批意见不能为空")
+    private String approvalComment;
 }

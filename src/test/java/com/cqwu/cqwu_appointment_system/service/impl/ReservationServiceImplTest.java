@@ -92,7 +92,7 @@ class ReservationServiceImplTest {
     @DisplayName("批准预约 - 成功创建 TimeBlock 并更新状态")
     void testApproveReservation_Success() {
         ReservationWithBLOBs pending = createPendingReservation(tomorrow.withHour(10), tomorrow.withHour(11));
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser);
+        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser, null);
 
         ReservationWithBLOBs approved = reservationService.approveReservation(request);
 
@@ -109,7 +109,7 @@ class ReservationServiceImplTest {
     void testApproveReservation_FailDueToConflict() {
         timeBlockService.createTimeBlock(createTimeBlock(tomorrow.withHour(14), tomorrow.withHour(16)));
         ReservationWithBLOBs pending = createPendingReservation(tomorrow.withHour(15), tomorrow.withHour(17));
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser);
+        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser, null);
 
         assertThrows(ReservationConflictException.class, () -> reservationService.approveReservation(request));
     }
@@ -163,11 +163,11 @@ class ReservationServiceImplTest {
         ReservationWithBLOBs pending = createPendingReservation(tomorrow.withHour(10), tomorrow.withHour(11));
         assertNull(pending.getTimeBlockId());
 
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forRejection(pending.getId(), adminUser, "原因");
+        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser, "原因");
         ReservationWithBLOBs rejected = reservationService.rejectReservation(request);
 
         assertEquals(Constants.ReservationStatus.REJECTED, rejected.getStatus());
-        assertEquals("原因", rejected.getRejectionReason());
+        assertEquals("原因", rejected.getApprovalComment());
         assertNull(rejected.getTimeBlockId(), "被拒绝的预约不应有关联的 TimeBlock");
     }
 
@@ -195,7 +195,7 @@ class ReservationServiceImplTest {
     
     private ReservationWithBLOBs createAndApproveReservation(LocalDateTime start, LocalDateTime end) {
         ReservationWithBLOBs pending = createPendingReservation(start, end);
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser);
+        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(pending.getId(), adminUser, null);
         return reservationService.approveReservation(request);
     }
 }

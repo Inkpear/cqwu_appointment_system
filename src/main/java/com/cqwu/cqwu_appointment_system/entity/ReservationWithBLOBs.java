@@ -18,6 +18,6 @@ public class ReservationWithBLOBs extends Reservation {
      * 【大字段】拒绝原因
      * SQL: TEXT, NULL
      */
-    @Size(max = 65535, message = "拒绝原因内容过长")
-    private String rejectionReason;
+    @Size(max = 65535, message = "审批意见内容过长")
+    private String approvalComment;
 }

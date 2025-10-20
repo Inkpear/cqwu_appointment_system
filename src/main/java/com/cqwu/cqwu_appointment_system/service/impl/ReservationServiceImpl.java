@@ -141,6 +141,7 @@ public class ReservationServiceImpl implements ReservationService {
         updateEntity.setApproverUserId(adminUser.getId());
         updateEntity.setApprovalTime(LocalDateTime.now());
         updateEntity.setAppointmentCode(generateAppointmentCode());
+        updateEntity.setApprovalComment(request.getApprovalComment());
         reservationMapper.updateByPrimaryKeySelective(updateEntity);
 
         log.info("预约 ID: {} 已被批准，并创建了关联的 TimeBlock ID: {}", reservationId, timeBlock.getId());
@@ -152,7 +153,7 @@ public class ReservationServiceImpl implements ReservationService {
     public ReservationWithBLOBs rejectReservation(UpdateReservationStatusRequest request) {
         User adminUser = request.getCurrentUser();
         Long reservationId = request.getReservationId();
-        String reason = request.getReason();
+        String reason = request.getApprovalComment();
         log.info("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), reservationId);
 
         findAndCheckPendingReservation(reservationId);
@@ -162,7 +163,7 @@ public class ReservationServiceImpl implements ReservationService {
         updateEntity.setStatus(Constants.ReservationStatus.REJECTED);
         updateEntity.setApproverUserId(adminUser.getId());
         updateEntity.setApprovalTime(LocalDateTime.now());
-        updateEntity.setRejectionReason(reason);
+        updateEntity.setApprovalComment(reason);
         reservationMapper.updateByPrimaryKeySelective(updateEntity);
 
         log.info("预约 ID: {} 已被拒绝", reservationId);

@@ -6,7 +6,7 @@ import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.CreateReservationRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
-import com.cqwu.cqwu_appointment_system.domain.dto.RejectReservationRequest;
+import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
@@ -80,11 +80,11 @@ public class ReservationController {
      */
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> approveReservation(@PathVariable Long id) {
+    public ResponseEntity<AjaxResult> approveReservation(@PathVariable Long id, @RequestBody(required = false) @Valid UpdateReservationRequest comment) {
         User adminUser = getCurrentUser();
         log.info("管理员 '{}' 正在批准预约, ID: {}", adminUser.getId(), id);
         try {
-            UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(id, adminUser);
+            UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(id, adminUser, comment.getApprovalComment());
             ReservationWithBLOBs approvedReservation = reservationService.approveReservation(request);
             return ResponseEntity.ok(AjaxResult.success("申请已批准", approvedReservation));
         } catch (ReservationConflictException e) {
@@ -102,12 +102,12 @@ public class ReservationController {
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> rejectReservation(@PathVariable Long id,
-            @RequestBody @Valid RejectReservationRequest request) {
+            @RequestBody @Valid UpdateReservationRequest request) {
         User adminUser = getCurrentUser();
         log.info("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), id);
         try {
-            UpdateReservationStatusRequest updateRequest = UpdateReservationStatusRequest.forRejection(id, adminUser,
-                    request.getReason());
+            UpdateReservationStatusRequest updateRequest = UpdateReservationStatusRequest.forApproval(id, adminUser,
+                    request.getApprovalComment());
             reservationService.rejectReservation(updateRequest);
             return ResponseEntity.ok(AjaxResult.success("申请已拒绝"));
         } catch (IllegalArgumentException e) {

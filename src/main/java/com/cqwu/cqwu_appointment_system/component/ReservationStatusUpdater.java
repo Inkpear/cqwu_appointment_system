@@ -90,7 +90,7 @@ public class ReservationStatusUpdater {
     }
 
     /**
-     * 【新增】独立的事务方法，用于处理单个自动审批，确保竞争逻辑的实时性。
+     *  独立的事务方法，用于处理单个自动审批，确保竞争逻辑的实时性。
      */
     @Transactional
     public void processSingleAutoApproval(ReservationWithBLOBs reservation) {
@@ -131,7 +131,7 @@ public class ReservationStatusUpdater {
         update.setStatus(Constants.ReservationStatus.REJECTED);
         update.setApproverUserId("SYSTEM");
         update.setApprovalTime(LocalDateTime.now());
-        update.setRejectionReason(reason);
+        update.setApprovalComment(reason);
         reservationMapper.updateByPrimaryKeySelective(update);
         log.warn("【定时任务】因 '{}'，已自动拒绝预约 ID: {}", reason, reservation.getId());
     }

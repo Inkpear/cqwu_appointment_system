@@ -86,7 +86,7 @@ CREATE TABLE
     `appointment_code` VARCHAR(50) NULL COMMENT '预约确认码，在状态变为 CONFIRMED 时生成',
     `approver_user_id` VARCHAR(20) NULL COMMENT '审批人用户ID',
     `approval_time` DATETIME NULL COMMENT '审批操作时间',
-    `rejection_reason` TEXT NULL COMMENT '拒绝原因',
+    `approval_comment` TEXT NULL COMMENT '拒绝原因',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请创建时间',
     PRIMARY KEY (`id`),
     UNIQUE INDEX `uk_time_block_id` (`time_block_id`),

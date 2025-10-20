@@ -15,18 +15,14 @@ public class UpdateReservationStatusRequest {
     
     private final User currentUser;
     
-    private String reason;
+    private String approvalComment;
     
 
     public static UpdateReservationStatusRequest forCancellation(Long id, User user) {
         return new UpdateReservationStatusRequest(id, user, null);
     }
     
-    public static UpdateReservationStatusRequest forApproval(Long id, User user) {
-        return new UpdateReservationStatusRequest(id, user, null);
-    }
-    
-    public static UpdateReservationStatusRequest forRejection(Long id, User user, String reason) {
-        return new UpdateReservationStatusRequest(id, user, reason);
+    public static UpdateReservationStatusRequest forApproval(Long id, User user, String approvalComment) {
+        return new UpdateReservationStatusRequest(id, user, approvalComment);
     }
 }

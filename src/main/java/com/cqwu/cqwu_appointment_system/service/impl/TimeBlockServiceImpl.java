@@ -132,7 +132,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
                     updateEntity.setStatus(Constants.ReservationStatus.REJECTED);
                     updateEntity.setApproverUserId("SYSTEM");
                     updateEntity.setApprovalTime(LocalDateTime.now());
-                    updateEntity.setRejectionReason("课程调整，系统自动拒绝");
+                    updateEntity.setApprovalComment("课程调整，系统自动拒绝");
 
                     ReservationExample resUpdateExample = new ReservationExample();
                     resUpdateExample.createCriteria().andIdIn(conflictingReservationIds);
