@@ -43,18 +43,18 @@ public class VenueStatusUpdater {
     public void updateVenueRealtimeStatus() {
         log.info("【定时任务】开始更新场所实时状态...");
 
-        // 1. 获取基础数据：当前时间和所有被占用的场地ID
+        // 获取基础数据：当前时间和所有被占用的场地ID
         LocalDateTime now = LocalDateTime.now();
         Set<Long> occupiedVenueIds = getCurrentlyOccupiedVenueIds(now);
 
-        // 2. 获取所有需要管理的场所
+        // 获取所有需要管理的场所
         List<Venue> allVenues = venueMapper.selectByExample(new VenueExample());
         if (allVenues.isEmpty()) {
             log.info("【定时任务】没有找到任何场所，任务结束。");
             return;
         }
 
-        // 3. 计算并收集状态需要更新的场所
+        // 计算并收集状态需要更新的场所
         List<Venue> venuesToUpdate = new ArrayList<>();
         for (Venue venue : allVenues) {
             String newRealtimeStatus = calculateNewStatus(venue, occupiedVenueIds, now.toLocalTime());
@@ -68,7 +68,7 @@ public class VenueStatusUpdater {
             }
         }
 
-        // 4. 如果有需要更新的场所，则执行批量更新
+        // 如果有需要更新的场所，则执行批量更新
         if (!venuesToUpdate.isEmpty()) {
             venueMapper.updateRealtimeStatusBatch(venuesToUpdate);
             log.info("【定时任务】任务完成：共批量更新了 {} 个场所的实时状态。", venuesToUpdate.size());

@@ -50,26 +50,26 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         LoginUser loginUser = (LoginUser) userDetails;
         User user = loginUser.getUser();
 
-        // 1. 创建JWT载荷
+        // 创建JWT载荷
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole());
 
-        // 2. 生成双令牌
+        // 生成双令牌
         String accessToken = JwtUtils.createAccessToken(claims, jwtProperties);
         String refreshToken = JwtUtils.createRefreshToken(user.getId(), jwtProperties);
 
-        // 3. 将Refresh Token存入Redis，并设置与Token本身相同的过期时间
+        // 将Refresh Token存入Redis，并设置与Token本身相同的过期时间
         String redisKey = Constants.REFRESH_TOKEN_KEY_PREFIX + user.getId();
         redisCache.setCacheObject(redisKey, refreshToken,
                 jwtProperties.getRefreshTokenExpireTime().toMillis(), TimeUnit.MILLISECONDS);
 
         log.info("用户 '{}' 登录成功，已生成并存储 Refresh Token。", userId);
 
-        // 4. 更新最后登录时间
+        // 更新最后登录时间
         userService.updateLoginTimeById(userId);
 
-        // 5. 返回双令牌
+        // 返回双令牌
         Map<String, String> tokens = new HashMap<>();
         tokens.put("accessToken", accessToken);
         tokens.put("refreshToken", refreshToken);
@@ -86,12 +86,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         String userId = null;
         try {
-            // 1. 解析 Refresh Token
+            // 解析 Refresh Token
             Claims claims = JwtUtils.parseJwt(refreshToken, jwtProperties.getSecret());
             userId = claims.get("userId", String.class);
             log.info("从 Refresh Token 中解析出 UserId: '{}'。", userId);
 
-            // 2. 【核心安全校验】校验 Redis 中存储的 Token 是否与传入的一致
+            // 【核心安全校验】校验 Redis 中存储的 Token 是否与传入的一致
             String redisKey = Constants.REFRESH_TOKEN_KEY_PREFIX + userId;
             String storedToken = redisCache.getCacheObject(redisKey);
             if (storedToken == null || !storedToken.equals(refreshToken)) {
@@ -99,7 +99,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 throw new JwtException("Refresh Token 无效或已过期");
             }
 
-            // 3. 校验通过，加载用户信息，生成新的 Access Token
+            // 校验通过，加载用户信息，生成新的 Access Token
             UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
             User user = ((LoginUser) userDetails).getUser();
             Map<String, Object> newClaims = new HashMap<>();

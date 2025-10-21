@@ -122,7 +122,7 @@ public class ReservationStatusUpdater {
     private void processActiveLifecycle() {
         LocalDateTime now = LocalDateTime.now();
 
-        // 1. 将已开始的 CONFIRMED 预约更新为 IN_PROGRESS
+        // 将已开始的 CONFIRMED 预约更新为 IN_PROGRESS
         ReservationExample toInProgressExample = new ReservationExample();
         toInProgressExample.createCriteria()
                 .andStatusEqualTo(Constants.ReservationStatus.CONFIRMED)
@@ -136,7 +136,7 @@ public class ReservationStatusUpdater {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
         }
 
-        // 2. 将已结束的 CONFIRMED 或 IN_PROGRESS 预约更新为 COMPLETED
+        // 将已结束的 CONFIRMED 或 IN_PROGRESS 预约更新为 COMPLETED
         ReservationExample toCompletedExample = new ReservationExample();
         toCompletedExample.createCriteria()
                 .andStatusIn(

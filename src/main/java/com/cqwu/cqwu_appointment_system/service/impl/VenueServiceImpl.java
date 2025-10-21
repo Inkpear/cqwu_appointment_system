@@ -177,12 +177,12 @@ public class VenueServiceImpl implements VenueService {
         Assert.notEmpty(ids, "要更新的ID列表不能为空");
         Assert.notNull(venueUpdateData, "更新数据不能为空");
 
-        // 1. 先对 DTO 自身进行基础校验
+        // 先对 DTO 自身进行基础校验
         validateCategoryId(venueUpdateData.getCategoryId());
         ValidationUtils.requireStartBeforeEnd(venueUpdateData.getOpenTime(), venueUpdateData.getCloseTime(),
                 "批量更新失败：指定的关闭时间必须晚于开放时间");
 
-        // 2. 如果需要进行时间校验（即 DTO 中至少包含一个时间字段），则必须从数据库预加载数据
+        // 如果需要进行时间校验（即 DTO 中至少包含一个时间字段），则必须从数据库预加载数据
         if (venueUpdateData.getOpenTime() != null || venueUpdateData.getCloseTime() != null) {
             List<Long> idList = Arrays.asList(ids);
             VenueExample example = new VenueExample();
@@ -192,7 +192,7 @@ public class VenueServiceImpl implements VenueService {
             Map<Long, Venue> existingVenuesMap = venueMapper.selectByExample(example).stream()
                     .collect(Collectors.toMap(Venue::getId, Function.identity()));
 
-            // 3. 在内存中对每个场所进行合并校验
+            // 在内存中对每个场所进行合并校验
             for (Long id : idList) {
                 Venue existingVenue = existingVenuesMap.get(id);
                 if (existingVenue != null) {
@@ -207,7 +207,7 @@ public class VenueServiceImpl implements VenueService {
             }
         }
 
-        // 4. 执行批量更新
+        // 执行批量更新
         venueUpdateData.setId(null); // 防止更新ID
         venueUpdateData.setRealtimeStatus(null); // 不允许手动更新实时状态
         List<Long> idList = Arrays.asList(ids);
@@ -222,25 +222,25 @@ public class VenueServiceImpl implements VenueService {
     @Override
     public List<CalendarEventDTO> getVenueScheduleForUser(Long venueId, LocalDateTime start, LocalDateTime end,
             User currentUser) {
-        // 1. 获取基础的 TimeBlock 数据
+        // 获取基础的 TimeBlock 数据
         List<TimeBlock> timeBlocks = timeBlockService.findTimeBlocksForVenue(venueId, start, end);
         if (timeBlocks.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 2. 提取所有关联的预约ID
+        // 提取所有关联的预约ID
         List<Long> reservationIds = timeBlocks.stream()
                 .filter(tb -> Constants.TimeBlockType.APPOINTMENT.equals(tb.getBlockType())
                         && tb.getReservationId() != null)
                 .map(TimeBlock::getReservationId)
                 .collect(Collectors.toList());
 
-        // 3. 一次性批量查询所有相关的预约信息
+        // 一次性批量查询所有相关的预约信息
         Map<Long, Reservation> reservationMap = reservationService.findReservationsByIds(reservationIds)
                 .stream()
                 .collect(Collectors.toMap(Reservation::getId, Function.identity()));
 
-        // 4. 将 TimeBlock 转换为 DTO，并处理“是否为本人预约”的逻辑
+        // 将 TimeBlock 转换为 DTO，并处理“是否为本人预约”的逻辑
         return timeBlocks.stream().map(tb -> {
             CalendarEventDTO dto = CalendarEventDTO.from(tb); // 使用 DTO 的工厂方法
 

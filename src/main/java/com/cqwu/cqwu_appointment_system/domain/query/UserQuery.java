@@ -9,7 +9,7 @@ public class UserQuery {
     private Integer page;
     private Integer size;
 
-    private String id; // 学号或工号
+    private String id;
     private String name;
     private String role;
     private Byte userType;

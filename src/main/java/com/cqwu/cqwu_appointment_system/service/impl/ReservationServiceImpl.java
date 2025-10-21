@@ -311,7 +311,7 @@ public class ReservationServiceImpl implements ReservationService {
     public ReservationWithBLOBs approveBySystem(ReservationWithBLOBs reservation) {
         log.info("【系统】正在自动批准预约 ID: {}", reservation.getId());
 
-        // 1. 创建 TimeBlock 占用物理时间
+        // 创建 TimeBlock 占用物理时间
         TimeBlock timeBlock = new TimeBlock();
         timeBlock.setVenueId(reservation.getVenueId());
         timeBlock.setStartDatetime(reservation.getStartDatetime());
@@ -321,7 +321,7 @@ public class ReservationServiceImpl implements ReservationService {
         timeBlock.setReservationId(reservation.getId());
         timeBlockMapper.insertSelective(timeBlock);
 
-        // 2. 更新预约状态为 CONFIRMED
+        // 更新预约状态为 CONFIRMED
         ReservationWithBLOBs update = new ReservationWithBLOBs();
         update.setId(reservation.getId());
         update.setTimeBlockId(timeBlock.getId());
