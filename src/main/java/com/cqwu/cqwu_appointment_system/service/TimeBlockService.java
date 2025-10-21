@@ -19,7 +19,11 @@ public interface TimeBlockService {
      * @param timeBlock 要创建的 TimeBlock 对象，必须包含 venueId, startDatetime, endDatetime。
      * @return 创建成功并持久化后的 TimeBlock 对象 (包含数据库生成的 ID)。
      * @throws com.cqwu.cqwu_appointment_system.exception.ReservationConflictException 如果指定时间段已被占用。
-     * @throws IllegalArgumentException 如果时间范围不合法 (例如 start >= end)。
+     * @throws IllegalArgumentException                                                如果时间范围不合法
+     *                                                                                 (例如
+     *                                                                                 start
+     *                                                                                 >=
+     *                                                                                 end)。
      */
     TimeBlock createTimeBlock(TimeBlock timeBlock);
 
@@ -81,4 +85,15 @@ public interface TimeBlockService {
      * @return 成功删除的记录数量。
      */
     int deleteAllCourseTimeBlocksByVenueIds(List<Long> venueIds);
+
+    /**
+     * 根据场所ID和时间范围，删除所有 'COURSE' 类型的 TimeBlock。
+     * 用于外部系统进行精确的增量数据清理。
+     *
+     * @param venueId 场所ID。
+     * @param start   时间范围的开始。
+     * @param end     时间范围的结束。
+     * @return 成功删除的记录数。
+     */
+    int deleteCourseTimeBlocksByRange(Long venueId, LocalDateTime start, LocalDateTime end);
 }

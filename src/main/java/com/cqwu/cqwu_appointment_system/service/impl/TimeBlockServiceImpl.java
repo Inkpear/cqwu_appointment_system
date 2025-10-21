@@ -129,56 +129,69 @@ public class TimeBlockServiceImpl implements TimeBlockService {
         if (courseTimeBlocks == null || courseTimeBlocks.isEmpty()) {
             return 0;
         }
-        log.warn("开始强制批量插入 {} 个课程 TimeBlock...", courseTimeBlocks.size());
+        log.warn("开始强制增量更新 {} 个课程 TimeBlock...", courseTimeBlocks.size());
 
-        // 增加前置校验，防止待插入列表内部存在时间冲突 ---
         validateNoSelfConflicts(courseTimeBlocks);
 
-        int conflictResolvedCount = 0;
-        // 遍历每个待插入的课程，处理与【已存在预约】的冲突
-        for (TimeBlock courseBlock : courseTimeBlocks) {
+        int appointmentConflictCount = 0;
+        int courseConflictCount = 0;
+
+        for (TimeBlock newCourseBlock : courseTimeBlocks) {
+            // 查找与新课程时间冲突的、所有类型的 TimeBlock
             TimeBlockExample conflictExample = new TimeBlockExample();
             conflictExample.createCriteria()
-                    .andVenueIdEqualTo(courseBlock.getVenueId())
-                    .andBlockTypeEqualTo(Constants.TimeBlockType.APPOINTMENT) // 只检查与预约的冲突
-                    .andEndDatetimeGreaterThan(courseBlock.getStartDatetime())
-                    .andStartDatetimeLessThan(courseBlock.getEndDatetime());
+                    .andVenueIdEqualTo(newCourseBlock.getVenueId())
+                    .andEndDatetimeGreaterThan(newCourseBlock.getStartDatetime())
+                    .andStartDatetimeLessThan(newCourseBlock.getEndDatetime());
 
             List<TimeBlock> conflictingBlocks = timeBlockMapper.selectByExample(conflictExample);
 
             if (!conflictingBlocks.isEmpty()) {
-                // 提取冲突的预约ID
+                // 分类处理冲突
+                // 提取与 APPOINTMENT 冲突的预约ID
                 List<Long> conflictingReservationIds = conflictingBlocks.stream()
+                        .filter(block -> Constants.TimeBlockType.APPOINTMENT.equals(block.getBlockType()))
                         .map(TimeBlock::getReservationId)
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList());
 
-                // 1. 删除冲突的 TimeBlock
-                timeBlockMapper.deleteByExample(conflictExample);
+                courseConflictCount += conflictingBlocks.stream()
+                        .filter(block -> Constants.TimeBlockType.COURSE.equals(block.getBlockType()))
+                        .count();
 
-                // 2. 更新关联的 Reservation 状态
+                // 一次性删除所有冲突的 TimeBlock (无论类型)
+                List<Long> conflictingBlockIds = conflictingBlocks.stream().map(TimeBlock::getId)
+                        .collect(Collectors.toList());
+                TimeBlockExample deleteExample = new TimeBlockExample();
+                deleteExample.createCriteria().andIdIn(conflictingBlockIds);
+                timeBlockMapper.deleteByExample(deleteExample);
+
+                // 如果存在预约冲突，则更新关联的 Reservation 状态
                 if (!conflictingReservationIds.isEmpty()) {
                     ReservationWithBLOBs updateEntity = new ReservationWithBLOBs();
                     updateEntity.setStatus(Constants.ReservationStatus.REJECTED);
-                    updateEntity.setApproverUserId("SYSTEM"); // 标记为系统操作
+                    updateEntity.setApproverUserId("SYSTEM");
                     updateEntity.setApprovalTime(LocalDateTime.now());
                     updateEntity.setApprovalComment("因课程安排调整，该时段已被占用，系统自动拒绝此预约。");
 
                     ReservationExample resUpdateExample = new ReservationExample();
                     resUpdateExample.createCriteria().andIdIn(conflictingReservationIds);
                     reservationMapper.updateByExampleSelective(updateEntity, resUpdateExample);
-                    conflictResolvedCount += conflictingReservationIds.size();
+                    appointmentConflictCount += conflictingReservationIds.size();
                 }
             }
         }
 
-        if (conflictResolvedCount > 0) {
-            log.warn("已自动拒绝并移除了 {} 个冲突的预约。", conflictResolvedCount);
+        if (appointmentConflictCount > 0) {
+            log.warn("已自动拒绝并移除了 {} 个冲突的用户预约。", appointmentConflictCount);
+        }
+        if (courseConflictCount > 0) {
+            log.warn("已覆盖了 {} 个冲突的旧课程记录。", courseConflictCount);
         }
 
-        // 批量插入所有课程
+        // 批量插入所有新课程
         int insertedCount = timeBlockMapper.insertBatch(courseTimeBlocks);
-        log.info("成功批量插入 {} 个课程 TimeBlock。", insertedCount);
+        log.info("成功插入 {} 个新课程 TimeBlock。", insertedCount);
 
         return insertedCount;
     }
@@ -201,6 +214,29 @@ public class TimeBlockServiceImpl implements TimeBlockService {
 
         int deletedCount = timeBlockMapper.deleteByExample(example);
         log.info("成功删除了 {} 条课程类 TimeBlock 记录。", deletedCount);
+        return deletedCount;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public int deleteCourseTimeBlocksByRange(Long venueId, LocalDateTime start, LocalDateTime end) {
+        log.warn("准备清空场所 ID: {} 在时间范围 [{} -> {}] 内的所有课程...", venueId, start, end);
+        Assert.notNull(venueId, "场所ID不能为空");
+        Assert.notNull(start, "开始时间不能为空");
+        Assert.notNull(end, "结束时间不能为空");
+
+        TimeBlockExample example = new TimeBlockExample();
+        example.createCriteria()
+                .andVenueIdEqualTo(venueId)
+                .andBlockTypeEqualTo(Constants.TimeBlockType.COURSE)
+                .andEndDatetimeGreaterThan(start) // 任何与范围重叠的
+                .andStartDatetimeLessThan(end); // 都会被删除
+
+        int deletedCount = timeBlockMapper.deleteByExample(example);
+        log.info("成功清空了 {} 条范围内的课程记录。", deletedCount);
         return deletedCount;
     }
 

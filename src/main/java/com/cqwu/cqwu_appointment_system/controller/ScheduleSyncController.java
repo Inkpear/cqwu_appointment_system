@@ -66,6 +66,23 @@ public class ScheduleSyncController {
     }
 
     /**
+     * [ROOT] 清空指定场所和时间范围内的所有课程安排。
+     *
+     * @param request 包含 venueId 和时间范围的请求体
+     * @return 操作结果
+     */
+    @DeleteMapping("/courses/by-range")
+    public ResponseEntity<AjaxResult> clearCoursesByRange(@RequestBody @Valid ClearCoursesByRangeRequest request) {
+        log.warn("接收到按范围清空课程请求，场所ID: {}, 范围: [{} -> {}]",
+                request.getVenueId(), request.getStart(), request.getEnd());
+
+        int count = timeBlockService.deleteCourseTimeBlocksByRange(
+                request.getVenueId(), request.getStart(), request.getEnd());
+
+        return ResponseEntity.ok(AjaxResult.success(String.format("成功清空 %d 条范围内的课程记录", count)));
+    }
+
+    /**
      * @description 用于课程同步接口的请求体 DTO。
      */
     @Data
@@ -101,5 +118,18 @@ public class ScheduleSyncController {
     static class ClearCoursesRequest {
         @NotEmpty(message = "要清空课程的场所ID列表不能为空")
         private List<Long> venueIds;
+    }
+
+    /**
+     * @description 清空指定场所和时间范围内的所有课程安排的请求体DTO
+     */
+    @Data
+    static class ClearCoursesByRangeRequest {
+        @NotNull(message = "场所ID不能为空")
+        private Long venueId;
+        @NotNull(message = "开始时间不能为空")
+        private LocalDateTime start;
+        @NotNull(message = "结束时间不能为空")
+        private LocalDateTime end;
     }
 }
