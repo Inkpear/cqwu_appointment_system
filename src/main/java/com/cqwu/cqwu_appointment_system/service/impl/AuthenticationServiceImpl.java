@@ -54,6 +54,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("role", user.getRole());
+        claims.put("name", user.getName());
+        claims.put("userType", user.getUserType());
 
         // 生成双令牌
         String accessToken = JwtUtils.createAccessToken(claims, jwtProperties);
