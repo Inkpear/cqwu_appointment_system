@@ -90,7 +90,7 @@ public class VenueStatusUpdater {
     private String calculateNewStatus(Venue venue, Set<Long> occupiedVenueIds, LocalTime nowTime) {
         // 优先级1：如果场所的基础状态不是"可用"（如"维修中"），则实时状态直接等于基础状态
         if (!Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
-            return Constants.VenueRealtimeStatus.DISABLED;
+            return venue.getBaseStatus();
         }
 
         // 优先级2：检查是否在开放时间内，如果不在则为"闭馆"

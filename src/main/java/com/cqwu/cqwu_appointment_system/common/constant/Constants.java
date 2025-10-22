@@ -104,7 +104,6 @@ public class Constants {
         public static final String AVAILABLE = "AVAILABLE"; // 当前可用
         public static final String OCCUPIED = "OCCUPIED"; // 当前被占用
         public static final String CLOSED = "CLOSED"; // 当前未在开放时间
-        public static final String DISABLED = "DISABLED"; // 已禁用
         public static final String UNKNOWN = "UNKNOWN"; // 初始未知状态
     }
 
