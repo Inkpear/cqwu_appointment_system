@@ -163,6 +163,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理线程中断异常 (InterruptedException)。
+     * 当一个操作（如 I/O 或长时间等待）被中断时抛出。
+     * 通常表示服务暂时无法处理请求。
+     */
+    @ExceptionHandler(InterruptedException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    public AjaxResult handleInterruptedException(InterruptedException e) {
+        log.warn("请求处理过程中线程被中断: {}", e.getMessage());
+        // 重新设置中断状态，这是处理此异常的最佳实践
+        Thread.currentThread().interrupt();
+        return AjaxResult.error(HttpStatus.SERVICE_UNAVAILABLE.value(), "服务正忙，请稍后重试");
+    }
+
+    /**
      * 兜底处理所有其他未被捕获的服务器内部异常 (500 Internal Server Error)
      */
     @ExceptionHandler(Exception.class)
