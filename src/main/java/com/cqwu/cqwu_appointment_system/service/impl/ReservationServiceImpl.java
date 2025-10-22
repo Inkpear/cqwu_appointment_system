@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -89,6 +90,8 @@ public class ReservationServiceImpl implements ReservationService {
                 throw new IllegalArgumentException("预约时长超过了该场所允许的最大限制");
             }
         }
+
+        checkUserHasNoOverlappingReservations(reservation);
 
         reservation.setStatus(Constants.ReservationStatus.PENDING);
         reservation.setCreateTime(LocalDateTime.now());
@@ -372,6 +375,35 @@ public class ReservationServiceImpl implements ReservationService {
             throw new IllegalStateException("该申请当前状态为 '" + r.getStatus() + "', 无法进行此操作");
         }
         return r;
+    }
+
+    /**
+     * 检查指定用户在同一场所是否已有时间冲突的、有效的预约申请。
+     * “有效”的申请包括 PENDING, CONFIRMED, IN_PROGRESS 状态。
+     *
+     * @param user    申请人
+     * @param venueId 目标场所ID
+     * @param start   申请的开始时间
+     * @param end     申请的结束时间
+     * @throws IllegalArgumentException 如果发现时间冲突的已有申请
+     */
+    private void checkUserHasNoOverlappingReservations(ReservationWithBLOBs reservation) {
+        ReservationExample example = new ReservationExample();
+        example.createCriteria()
+                .andCreatorUserIdEqualTo(reservation.getCreatorUserId())
+                .andVenueIdEqualTo(reservation.getVenueId())
+                .andStatusIn(Arrays.asList(
+                        Constants.ReservationStatus.PENDING,
+                        Constants.ReservationStatus.CONFIRMED,
+                        Constants.ReservationStatus.IN_PROGRESS))
+                .andEndDatetimeGreaterThan(reservation.getStartDatetime()) // 已有申请的结束时间 > 新申请的开始时间
+                .andStartDatetimeLessThan(reservation.getEndDatetime()); // 已有申请的开始时间 < 新申请的结束时间
+
+        long conflictingCount = reservationMapper.countByExample(example);
+
+        if (conflictingCount > 0) {
+            throw new IllegalArgumentException("您在该场所的相近时间段内已有一个预约申请，请勿重复提交");
+        }
     }
 
     private void checkCategoryPermissions(User user, Venue venue) {
