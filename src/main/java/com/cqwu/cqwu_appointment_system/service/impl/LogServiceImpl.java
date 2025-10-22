@@ -128,10 +128,9 @@ public class LogServiceImpl implements LogService {
     public Page<FrontendLogWithBLOBs> queryFrontendLogs(FrontendLogQuery query) {
         log.info("开始根据条件分页查询前端日志, 查询参数: {}", query);
 
-        Integer page = (query.getPageNum() == null || query.getPageNum() < 0) ? 0 : query.getPageNum();
-        Integer size = (query.getPageSize() == null || query.getPageSize() <= 0) ? Constants.DEFAULT_PAGE_SIZE
-                : query.getPageSize();
-                
+        Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
+        Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
+
         PageHelper.startPage(page + 1, size);
 
         FrontendLogExample example = new FrontendLogExample();

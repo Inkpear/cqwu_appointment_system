@@ -1,8 +1,11 @@
 package com.cqwu.cqwu_appointment_system.domain.query;
 
-import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
+
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+
 import java.time.LocalDateTime;
 
 /**
@@ -11,8 +14,10 @@ import java.time.LocalDateTime;
 @Data
 public class FrontendLogQuery {
 
-    private Integer pageNum = 0;
-    private Integer pageSize = Constants.DEFAULT_PAGE_SIZE;
+    @PositiveOrZero(message = "页码不可以传入负数")
+    private Integer page;
+    @Positive(message = "分页大小至少为1")
+    private Integer size;
 
     private String logLevel;
     private String userId;

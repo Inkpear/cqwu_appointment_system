@@ -47,7 +47,7 @@ public class VenueController {
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> searchVenues(VenueQuery query) {
+    public ResponseEntity<AjaxResult> searchVenues(@Valid VenueQuery query) {
         log.info("开始搜索场所, 查询参数: {}", query);
         Page<Venue> venuePage = venueService.searchVenues(query);
         PageDTO<Venue> venuePageDTO = PageDTO.fromPage(venuePage);

@@ -37,7 +37,7 @@ public class UserController {
      * @return 分页的用户列表
      */
     @GetMapping
-    public ResponseEntity<AjaxResult> listUsers(UserQuery query) {
+    public ResponseEntity<AjaxResult> listUsers(@Valid UserQuery query) {
         log.info("管理员正在查询用户列表, 查询参数: {}", query);
         Page<User> userPage = userService.searchUsers(query);
         PageDTO<User> userPageDTO = PageDTO.fromPage(userPage);

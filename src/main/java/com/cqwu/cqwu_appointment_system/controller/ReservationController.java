@@ -151,7 +151,7 @@ public class ReservationController {
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> searchReservations(ReservationQuery query, Authentication auth) {
+    public ResponseEntity<AjaxResult> searchReservations(@Valid ReservationQuery query, Authentication auth) {
         User currentUser = getCurrentUser(auth);
         log.info("用户 '{}' 正在查询预约列表, 查询参数: {}", currentUser.getId(), query);
 

@@ -85,7 +85,7 @@ public class LogController {
      * @return 封装了日志列表和分页信息的成功响应。
      */
     @GetMapping("/frontend/query")
-    public ResponseEntity<AjaxResult> queryFrontendLogs(FrontendLogQuery query) {
+    public ResponseEntity<AjaxResult> queryFrontendLogs(@Valid FrontendLogQuery query) {
         Page<FrontendLogWithBLOBs> logPage = logService.queryFrontendLogs(query);
 
         PageDTO<FrontendLogWithBLOBs> logPageDTO = PageDTO.fromPage(logPage);
