@@ -136,12 +136,9 @@ public class UserServiceImpl implements UserService {
         UserExample example = new UserExample();
         example.createCriteria().andIdEqualTo(user.getId());
 
-        String userId = user.getId();
-        user.setId(null);
-
         int result = userMapper.updateByExampleSelective(user, example);
         if (result == 0) {
-            log.warn("更新用户信息未产生影响, 数据无变化, User ID: {}", userId);
+            log.warn("更新用户信息未产生影响, 数据无变化, User ID: {}", user.getId());
         }
         return result;
     }
