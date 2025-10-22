@@ -131,3 +131,22 @@ CREATE TABLE
     INDEX `idx_category_id` (`category_id`),
     UNIQUE INDEX `uk_category_user_type` (`category_id`, `allowed_user_type`)
   ) ENGINE = InnoDB COMMENT = '场所分类准入规则表';
+
+-- ----------------------------
+-- Table structure for frontend_logs
+-- ----------------------------
+CREATE TABLE
+  `frontend_logs` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `log_level` VARCHAR(10) NOT NULL COMMENT '日志级别 (如 INFO, WARN, ERROR)',
+    `log_message` TEXT NOT NULL COMMENT '日志内容',
+    `log_timestamp` DATETIME NOT NULL COMMENT '前端生成日志的时间',
+    `user_id` VARCHAR(20) NULL COMMENT '上报日志的用户名 (学号/工号)',
+    `user_agent` TEXT NULL COMMENT '用户的浏览器或客户端信息',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '日志入库时间',
+    PRIMARY KEY (`id`),
+    INDEX `idx_log_level` (`log_level`),
+    INDEX `idx_log_timestamp` (`log_timestamp`)
+  ) ENGINE = InnoDB CHARACTER
+SET
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '前端上报日志表';

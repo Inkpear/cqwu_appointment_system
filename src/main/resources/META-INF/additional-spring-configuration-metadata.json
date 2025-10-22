@@ -18,5 +18,10 @@
     "name": "jwt.header",
     "type": "java.lang.String",
     "description": "Token Header"
+  },
+  {
+    "name": "logging.frontend.max-per-user",
+    "type": "java.lang.String",
+    "description": "每个用户允许存储在数据库中的最大前端日志条数"
   }
 ]}
