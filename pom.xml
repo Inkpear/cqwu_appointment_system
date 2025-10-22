@@ -14,7 +14,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 	<name>cqwu_appointment_system</name>
 	<description>appointment project for cqwu</description>
-	
+
 	<properties>
 		<java.version>17</java.version>
 	</properties>
@@ -84,6 +84,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+
+
+		<dependency>
+			<groupId>com.github.oshi</groupId>
+			<artifactId>oshi-core</artifactId>
+			<version>6.4.10</version>
+		</dependency>
+
 
 		<!-- JJWT (Java JWT Library) -->
 		<dependency>
