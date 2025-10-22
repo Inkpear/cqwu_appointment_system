@@ -171,7 +171,6 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public AjaxResult handleInterruptedException(InterruptedException e) {
         log.warn("请求处理过程中线程被中断: {}", e.getMessage());
-        // 重新设置中断状态，这是处理此异常的最佳实践
         Thread.currentThread().interrupt();
         return AjaxResult.error(HttpStatus.SERVICE_UNAVAILABLE.value(), "服务正忙，请稍后重试");
     }

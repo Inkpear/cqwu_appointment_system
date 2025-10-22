@@ -25,7 +25,7 @@ public class SystemMonitorController {
     private SystemMonitorService systemMonitorService;
 
     /**
-     * [ADMIN] 获取系统综合监控信息。
+     * [ADMIN] or [ROOT] 获取系统综合监控信息。
      * 此端点返回服务器、CPU、内存和磁盘的详细状态。
      *
      * @return 成功时，返回包含 {@link SystemInfoDTO} 的 ResponseEntity 响应体 (HTTP 200)；
