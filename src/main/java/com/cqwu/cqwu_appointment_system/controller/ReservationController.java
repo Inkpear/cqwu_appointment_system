@@ -14,16 +14,15 @@ import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Arrays;
 
 /**
  * @description 负责处理所有与预约申请相关的API请求。
@@ -36,6 +35,7 @@ public class ReservationController {
 
     @Autowired
     private ReservationService reservationService;
+
     @Autowired
     private VenueService venueService;
 
@@ -48,20 +48,36 @@ public class ReservationController {
      */
     @PostMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> createReservation(@RequestBody @Valid CreateReservationRequest request, Authentication auth) {
-        User currentUser = getCurrentUser(auth);
-        log.info("用户 '{}' 正在发起新的预约申请: {}", currentUser.getId(), request);
+    public ResponseEntity<AjaxResult> createReservation(
+        @RequestBody @Valid CreateReservationRequest request,
+        @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        User currentUser = loginUser.getUser();
+        log.info(
+            "用户 '{}' 正在发起新的预约申请: {}",
+            currentUser.getId(),
+            request
+        );
 
         Venue venue = venueService.selectVenueById(request.getVenueId());
         if (venue == null) {
             throw new IllegalArgumentException("指定的场所不存在");
         }
 
-        ReservationWithBLOBs reservationToCreate = mapToEntity(request, currentUser);
-        ReservationWithBLOBs createdReservation = reservationService.createReservation(reservationToCreate, currentUser, venue);
-        
-         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(AjaxResult.created("预约申请已提交，等待审批", createdReservation));
+        ReservationWithBLOBs reservationToCreate = mapToEntity(
+            request,
+            currentUser
+        );
+        ReservationWithBLOBs createdReservation =
+            reservationService.createReservation(
+                reservationToCreate,
+                currentUser,
+                venue
+            );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+            AjaxResult.created("预约申请已提交，等待审批", createdReservation)
+        );
     }
 
     /**
@@ -73,16 +89,32 @@ public class ReservationController {
      * @return 包含批准后的预约信息的 ResponseEntity
      */
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> approveReservation(@PathVariable Long id, @RequestBody(required = false) @Valid UpdateReservationRequest comment, Authentication auth) {
-        User adminUser = getCurrentUser(auth);
+    @PreAuthorize(
+        "hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)"
+    )
+    public ResponseEntity<AjaxResult> approveReservation(
+        @PathVariable Long id,
+        @RequestBody(required = false) @Valid UpdateReservationRequest comment,
+        @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        User adminUser = loginUser.getUser();
         log.info("管理员 '{}' 正在批准预约, ID: {}", adminUser.getId(), id);
 
-        String approvalComment = (comment != null) ? comment.getApprovalComment() : "批准";
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forApproval(id, adminUser, approvalComment);
-        ReservationWithBLOBs approvedReservation = reservationService.approveReservation(request);
+        String approvalComment = (comment != null)
+            ? comment.getApprovalComment()
+            : "批准";
+        UpdateReservationStatusRequest request =
+            UpdateReservationStatusRequest.forApproval(
+                id,
+                adminUser,
+                approvalComment
+            );
+        ReservationWithBLOBs approvedReservation =
+            reservationService.approveReservation(request);
 
-        return ResponseEntity.ok(AjaxResult.success("申请已批准", approvedReservation));
+        return ResponseEntity.ok(
+            AjaxResult.success("申请已批准", approvedReservation)
+        );
     }
 
     /**
@@ -94,12 +126,23 @@ public class ReservationController {
      * @return 操作成功的 ResponseEntity
      */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> rejectReservation(@PathVariable Long id, @RequestBody @Valid UpdateReservationRequest request, Authentication auth) {
-        User adminUser = getCurrentUser(auth);
+    @PreAuthorize(
+        "hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)"
+    )
+    public ResponseEntity<AjaxResult> rejectReservation(
+        @PathVariable Long id,
+        @RequestBody @Valid UpdateReservationRequest request,
+        @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        User adminUser = loginUser.getUser();
         log.info("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), id);
 
-        UpdateReservationStatusRequest updateRequest = UpdateReservationStatusRequest.forApproval(id, adminUser, request.getApprovalComment());
+        UpdateReservationStatusRequest updateRequest =
+            UpdateReservationStatusRequest.forApproval(
+                id,
+                adminUser,
+                request.getApprovalComment()
+            );
         reservationService.rejectReservation(updateRequest);
 
         return ResponseEntity.ok(AjaxResult.success("申请已拒绝"));
@@ -114,11 +157,15 @@ public class ReservationController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> cancelReservation(@PathVariable Long id, Authentication auth) {
-        User currentUser = getCurrentUser(auth);
+    public ResponseEntity<AjaxResult> cancelReservation(
+        @PathVariable Long id,
+        @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        User currentUser = loginUser.getUser();
         log.info("用户 '{}' 正在尝试取消预约, ID: {}", currentUser.getId(), id);
 
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forCancellation(id, currentUser);
+        UpdateReservationStatusRequest request =
+            UpdateReservationStatusRequest.forCancellation(id, currentUser);
         reservationService.cancelReservation(request);
 
         return ResponseEntity.ok(AjaxResult.success("预约已取消"));
@@ -132,9 +179,12 @@ public class ReservationController {
      */
     @GetMapping("/by-code/{code}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> getReservationByCode(@PathVariable String code) {
+    public ResponseEntity<AjaxResult> getReservationByCode(
+        @PathVariable String code
+    ) {
         log.info("正在根据预约码 '{}' 查询详情...", code);
-        ReservationWithBLOBs reservation = reservationService.findReservationByCode(code);
+        ReservationWithBLOBs reservation =
+            reservationService.findReservationByCode(code);
         if (reservation == null) {
             throw new IllegalArgumentException("未查询到该预约码对应的记录");
         }
@@ -151,38 +201,46 @@ public class ReservationController {
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<AjaxResult> searchReservations(@Valid ReservationQuery query, Authentication auth) {
-        User currentUser = getCurrentUser(auth);
-        log.info("用户 '{}' 正在查询预约列表, 查询参数: {}", currentUser.getId(), query);
+    public ResponseEntity<AjaxResult> searchReservations(
+        @Valid ReservationQuery query,
+        @AuthenticationPrincipal LoginUser loginUser
+    ) {
+        User currentUser = loginUser.getUser();
+        log.info(
+            "用户 '{}' 正在查询预约列表, 查询参数: {}",
+            currentUser.getId(),
+            query
+        );
 
         // 如果不是管理员，则强制查询条件为当前用户
-        if (!Arrays.asList(Constants.UserRoleType.ROLE_ADMIN, Constants.UserRoleType.ROLE_ROOT).contains(currentUser.getRole())) {
+        if (
+            !Arrays.asList(
+                Constants.UserRoleType.ROLE_ADMIN,
+                Constants.UserRoleType.ROLE_ROOT
+            ).contains(currentUser.getRole())
+        ) {
             query.setCreatorUserId(currentUser.getId());
         }
 
-        Page<ReservationWithBLOBs> pageOfEntities = reservationService.searchReservations(query);
-        PageDTO<ReservationWithBLOBs> pageOfDtos = PageDTO.fromPage(pageOfEntities);
+        Page<ReservationWithBLOBs> pageOfEntities =
+            reservationService.searchReservations(query);
+        PageDTO<ReservationWithBLOBs> pageOfDtos = PageDTO.fromPage(
+            pageOfEntities
+        );
 
         return ResponseEntity.ok(AjaxResult.success("查询成功", pageOfDtos));
     }
 
-    /**
-     * 从 Spring Security 的 Authentication 对象中提取当前登录的用户实体。
-     *
-     * @param authentication 认证对象
-     * @return User 实体
-     */
-    private User getCurrentUser(Authentication authentication) {
-        return ((LoginUser) authentication.getPrincipal()).getUser();
-    }
-    
     /**
      * 将 CreateReservationRequest DTO 转换为 ReservationWithBLOBs 实体。
      * @param request DTO
      * @param currentUser 当前用户
      * @return 实体
      */
-    private ReservationWithBLOBs mapToEntity(CreateReservationRequest request, User currentUser) {
+    private ReservationWithBLOBs mapToEntity(
+        CreateReservationRequest request,
+        User currentUser
+    ) {
         ReservationWithBLOBs entity = new ReservationWithBLOBs();
         entity.setVenueId(request.getVenueId());
         entity.setCreatorUserId(currentUser.getId());
