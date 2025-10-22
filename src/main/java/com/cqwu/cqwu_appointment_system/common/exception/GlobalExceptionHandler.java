@@ -4,6 +4,7 @@ import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
 import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -173,6 +175,28 @@ public class GlobalExceptionHandler {
         log.warn("请求处理过程中线程被中断: {}", e.getMessage());
         Thread.currentThread().interrupt();
         return AjaxResult.error(HttpStatus.SERVICE_UNAVAILABLE.value(), "服务正忙，请稍后重试");
+    }
+
+    /**
+     * 处理 I/O 异常 (IOException)。
+     * 通常发生在文件读写等操作失败时。
+     */
+    @ExceptionHandler(IOException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public AjaxResult handleIOException(IOException e) {
+        log.error("服务器发生 I/O 错误: ", e);
+        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器内部发生I/O 错误");
+    }
+
+    /**
+     * 处理请求中缺少必需 @RequestParam 参数的异常 (400 Bad Request)
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public AjaxResult handleMissingServletRequestParameterException(MissingServletRequestParameterException e) {
+        String message = String.format("请求缺少必需的参数: '%s'", e.getParameterName());
+        log.warn(message);
+        return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), message);
     }
 
     /**
