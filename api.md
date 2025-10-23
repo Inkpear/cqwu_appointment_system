@@ -1,4 +1,5 @@
 # **重庆文理学院场所预约平台 API 文档**
+> 文档更新于：2025年10月23日
 
 ## **通用约定**
 
@@ -643,11 +644,17 @@
 
 ## **8. 日志模块 (`/api/logs`)**
 
-**注意：此模块下所有接口默认需要 `ROOT` 权限。**
+权限说明：
+- 上报前端日志（单条/批量）需要“已认证用户”。
+- 查询接口（后端日志、前端日志分页查询）需要 `ROOT` 权限。
+
+配置说明：
+- `logging.frontend.max-per-user`（默认 `20`）：单个用户在数据库中允许保留的前端日志最大条数，超出后按“最旧优先”淘汰；当单次批量本身超过上限时，仅保留本批中“最新的上限条”。
 
 ### **8.1 查询后端日志文件**
 
 *   **Endpoint**: `GET /api/logs/backend`
+*   **权限**: `ROOT`
 *   **描述**: 读取后端日志文件的最新内容，支持按级别筛选、限制行数以及倒序游标查询。
 *   **Query Parameters**:
     *   `level` (`String`, `Required`): 日志级别，支持 `debug`、`info`、`warn`、`error`。
@@ -665,16 +672,18 @@
     }
     ```
 
-### **8.2 上报前端日志**
+### **8.2 上报前端日志（单条）**
 
 *   **Endpoint**: `POST /api/logs/frontend`
-*   **描述**: 前端主动上报运行时错误或关键埋点。后端会记录上报用户以及 `User-Agent`。
+*   **权限**: 已认证用户
+*   **描述**: 前端主动上报运行时错误或关键埋点。后端会记录上报用户以及 `User-Agent`，并对单用户总量做上限控制（超过会淘汰最旧日志）。
 *   **Headers**:
+    *   `Authorization` (`String`, `Required`): `Bearer <access-token>`
     *   `User-Agent` (`String`, `Required`)
 *   **Request Body** (`FrontendLogRequestDTO` DTO)：
-    *   `logLevel` (`String`): 日志级别，例如 `INFO`、`ERROR`。
-    *   `logMessage` (`String`): 详细日志内容。
-    *   `logTimestamp` (`String`, ISO-8601): 前端产生日志的时间。
+    *   `logLevel` (`String`, Required): 日志级别，合法值来自 `Constants.LogLevel`：`DEBUG`、`INFO`、`WARN`、`ERROR`。
+    *   `logMessage` (`String`, Required): 详细日志内容，≤ 65535 字符。
+    *   `logTimestamp` (`String`, Required, ISO-8601): 前端产生日志的时间。
     ```json
     {
       "logLevel": "ERROR",
@@ -689,10 +698,43 @@
         "msg": "前端日志上报成功。"
     }
     ```
+*   **Error Responses**:
+  - `400 Bad Request`：参数校验未通过（例如 `logLevel` 非法、`logMessage` 为空、`logTimestamp` 为空）。
+  - `401 Unauthorized`：未登录或凭证无效。
+
+### **8.2.1 批量上报前端日志**
+
+*   **Endpoint**: `POST /api/logs/frontend/batch`
+*   **权限**: 已认证用户
+*   **描述**: 批量上报多条日志；后端会在单用户维度严格执行“最大存储条数”上限（配置 `logging.frontend.max-per-user`，默认 20）。
+    - 若“现有数量 + 本次批量”超过上限且历史可腾出空间，则删除最旧的若干条旧日志，再插入本次批量。
+    - 若本次批量条数本身超过上限，则清空旧日志，仅保留本次批量中“最新的上限条”。
+*   **Headers**:
+    *   `Authorization` (`String`, `Required`): `Bearer <access-token>`
+    *   `User-Agent` (`String`, `Required`)
+*   **Request Body**: `FrontendLogRequestDTO[]`
+    ```json
+    [
+      { "logLevel": "INFO",  "logMessage": "init ok", "logTimestamp": "2025-10-21T10:00:00" },
+      { "logLevel": "ERROR", "logMessage": "chunk-xxx.js 加载失败", "logTimestamp": "2025-10-21T10:25:30" }
+    ]
+    ```
+*   **Success Response (`200 OK`)**:
+    ```json
+    { "code": 200, "msg": "前端日志批量上报成功。" }
+    ```
+*   **Error Responses**:
+    - `400 Bad Request`：数组为空或元素校验失败。
+    - `401 Unauthorized`：未登录或凭证无效。
+
+合法日志级别（后端常量）
+- 源自 `Constants.LogLevel`：`DEBUG`、`INFO`、`WARN`、`ERROR`
+
 
 ### **8.3 分页查询前端日志**
 
 *   **Endpoint**: `GET /api/logs/frontend/query`
+*   **权限**: `ROOT`
 *   **描述**: 按条件分页检索前端上报日志，返回 `PageDTO<FrontendLogWithBLOBs>`。
 *   **Query Parameters** (`FrontendLogQuery` DTO)：
     *   `page` (`Integer`, `Optional`): 页码，默认 `0`，≥ 0。
@@ -790,6 +832,7 @@
 ### **SSE 订阅**
 
 *   **Endpoint**: `GET /api/notifications/subscribe`
+*   **响应类型**: `text/event-stream`
 *   **描述**: 建立一个 SSE 连接，服务器会为当前认证用户返回一个持续的事件流。前端需在 `Authorization: Bearer <token>` 头中携带访问令牌。
 *   **权限**: 已认证用户
 
@@ -798,12 +841,14 @@
 以下事件名称来自后端常量 `Constants.SseEvent`，事件名保持不变，payload 根据事件类型可能为对象或简单标识：
 
 - `sse-connection-established`：连接建立时服务器发送的握手事件，payload 为连接确认信息（字符串）。
+- `sse-ping`：服务器定期发送的心跳事件，用于保活连接；payload 为服务器时间戳（Number）。前端可忽略。
 - `new-reservation`：新预约已创建（管理员需处理），payload 推荐为简短对象：{ "reservationId": 123, "venueId": 1, "title": "..." }
 - `reservation-approved`：预约被管理员批准，payload 为被批准的预约简要信息或完整 `Reservation` 对象。
 - `reservation-rejected`：预约被拒绝，payload 通常包含预约 id 与拒绝原因。
 - `reservation-cancelled-by-user`：用户主动取消预约，payload 为预约 id。
 - `reservation-cancelled-by-admin`：管理员取消预约，payload 为预约 id 与原因。
 - `venue-updated`：单个场所更新或批量更新后广播。payload 可为单个 `Venue` 对象或字符串 `"list_updated"`（表示列表已变化，前端建议重新拉取列表）。
+- `venue-deleted`：批量删除场所后广播。payload 为被删除的场所 ID 列表，例如 `[1,2,3]`。
 - `venue-category-created`：场所分类创建，payload 为新创建的 `VenueCategory` 对象。
 - `venue-category-updated`：场所分类更新，payload 为更新后的 `VenueCategory` 对象。
 - `venue-category-deleted`：场所分类删除，payload 为被删除的分类 ID 列表，例如 `[1,2]`。
@@ -813,9 +858,10 @@
 ### **示例：使用 JavaScript 订阅 SSE**
 
 ```javascript
-const evtSource = new EventSource('/api/notifications/subscribe', { withCredentials: true });
+const evtSource = new EventSource('/api/notifications/subscribe');
 
 evtSource.addEventListener('sse-connection-established', (e) => console.log('connected', e.data));
+evtSource.addEventListener('sse-ping', () => {/* 心跳，可忽略 */});
 evtSource.addEventListener('venue-updated', (e) => {
     const payload = JSON.parse(e.data);
     // 如果 payload === 'list_updated' 则重新请求场所列表，否则更新单个场所 UI
@@ -823,6 +869,46 @@ evtSource.addEventListener('venue-updated', (e) => {
 
 // 通用错误/关闭处理
 evtSource.onerror = (err) => { console.error('SSE error', err); };
+// 可选：断线重连策略（伪代码）
+// evtSource.onclose = () => setTimeout(connect, backoffMs);
+
+```
+
+### **推送范围与权限约定**
+
+后端支持“按用户”与“按角色”推送：
+
+- 广播（全员）：`sendNotification(Constants.SseBroadcast.ALL_USERS, event, payload)`
+- 指定用户：`sendNotification(userId, event, payload)`
+- 指定角色：`sendToRole(role, event, payload)` / `sendToRoles([role1, role2], event, payload)`
+
+事件范围（约定）：
+
+- `new-reservation`（新预约待审批）：仅推送给 `ADMIN`、`ROOT`。
+- `reservation-cancelled-by-user`（用户取消）：仅推送给 `ADMIN`、`ROOT`。
+- `reservation-approved` / `reservation-rejected` / `reservation-cancelled-by-admin`：定向推送给申请人（按用户ID）。
+- `venue-updated` / `venue-deleted` / `venue-category-*/rule-updated`：一般广播给所有在线用户，用于提示列表刷新。
+
+为避免“所有客户端同时发起数据刷新”的并发尖峰，服务端对广播采用“分批 + 批内轻微抖动”的分散推送（默认每批 50 个连接、批间隔 300ms、批内抖动 ≤ 200ms；也可退化为纯抖动模式 ≤ 3s）。客户端不需要感知该细节，仅需在收到事件后按自身逻辑拉取最新数据即可。
 ```
 
 > 注意：SSE 连接在某些代理或负载均衡器下可能需要特殊配置以保持连接；前端应实现自动重连策略并能容忍重复事件。
+
+### 心跳与会话保持
+
+- 服务器心跳策略（自适应）：
+    - 下一次心跳间隔 = max(base, ceil(lastCost × P))，并受 max 上限约束。
+    - 可配置项：
+        - `logging.sse.heartbeat.base`（Duration，默认 `PT25S`）
+        - `logging.sse.heartbeat.multiplier`（Double，默认 `1.0`）
+        - `logging.sse.heartbeat.max`（Duration，默认 `PT45S`）
+    - 目的：在负载升高时适度放缓心跳以减轻压力，同时通过 `max` 上限避免客户端/代理因过长空闲误判掉线。
+
+- 客户端保持与断线检测：
+    - 浏览器 `EventSource` 不会向服务器发心跳；连接保持依赖于服务器持续发送事件（如 `sse-ping`）和底层 TCP keepalive。
+    - 客户端应实现“软超时”检测：若超过阈值仍未收到任何事件（建议阈值略大于 `heartbeat.max`，例如 `heartbeat.max × 1.5`），则主动关闭并重建 `EventSource`。
+    - `EventSource` 内置自动重连（默认约 3s，或由服务器通过 `retry:` 指令调整）。后端可在首次事件中下发合适的重连时间以避免重连风暴。
+
+- 反压与避免重连风暴：
+    - 建议在生产网关（如 Nginx）上将 `proxy_read_timeout` 设置为 ≥ `heartbeat.max × 2`，负载均衡的空闲超时也应高于该值。
+    - 客户端重连应采用指数退避（例如 3s、6s、12s、…，上限 60s），并在恢复后进行状态校正（例如拉取最新列表）。
