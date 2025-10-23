@@ -141,7 +141,7 @@ public class VenueController {
         int result = venueService.deleteVenueByIds(ids);
 
         if (result == 0) {
-            throw new IllegalArgumentException(Constants.DELETE_FAIL_NOT_FOUND);
+            throw new IllegalArgumentException(Constants.UPDATE_FAIL_NOT_FOUND);
         }
         // 广播删除事件，前端可据此刷新列表/缓存
         notificationService.sendNotification(
