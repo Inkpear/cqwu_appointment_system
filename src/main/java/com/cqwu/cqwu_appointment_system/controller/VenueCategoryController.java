@@ -76,7 +76,7 @@ public class VenueCategoryController {
 
         venueCategoryService.createVenueCategory(venueCategory);
         notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_CATEGORY_CREATED,
                 venueCategory);
 
@@ -100,7 +100,7 @@ public class VenueCategoryController {
 
         venueCategoryService.updateVenueCategory(venueCategory);
         notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_CATEGORY_UPDATED,
                 venueCategory);
 
@@ -125,7 +125,7 @@ public class VenueCategoryController {
         }
 
         notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_CATEGORY_DELETED,
                 ids);
         return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 个分类", ids.length)));
@@ -141,7 +141,7 @@ public class VenueCategoryController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getRulesForCategory(@PathVariable Long categoryId) {
         log.info("查询分类 ID: {} 的所有准入规则", categoryId);
-        
+
         List<VenueCategoryRule> rules = venueCategoryRuleService.findRulesByCategoryId(categoryId);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, rules));

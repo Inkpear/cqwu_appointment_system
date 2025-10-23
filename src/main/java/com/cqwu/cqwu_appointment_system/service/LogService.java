@@ -40,6 +40,17 @@ public interface LogService {
     void saveFrontendLog(FrontendLogRequestDTO dto, String userId, String userAgent);
 
     /**
+     * 批量保存前端上报的日志。需要保证单用户的日志存储量不超过上限：
+     * - 若现有数量 + 本次批量 > 上限，则优先删除该用户最旧的历史日志；
+     * - 若仍超过（即本次批量条数本身就超过上限），仅保留本次批量中最新的上限条。
+     *
+     * @param list      前端日志请求列表
+     * @param userId    用户ID（可为匿名）
+     * @param userAgent User-Agent
+     */
+    void saveFrontendLogs(List<FrontendLogRequestDTO> list, String userId, String userAgent);
+
+    /**
      * 根据条件分页查询前端上报的日志。
      *
      * @param query 包含所有查询条件和分页信息的对象 (pageNum 为 0-based)。

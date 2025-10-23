@@ -118,4 +118,10 @@ public interface FrontendLogMapper {
      * @mbg.generated Wed Oct 22 18:42:56 CST 2025
      */
     int updateByPrimaryKey(FrontendLog row);
+
+    /**
+     * 批量插入前端日志记录。
+     * 注意：不返回每条的主键ID。
+     */
+    int batchInsert(@Param("list") List<FrontendLogWithBLOBs> rows);
 }

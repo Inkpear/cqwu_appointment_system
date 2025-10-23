@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -87,22 +88,20 @@ public class LogServiceImpl implements LogService {
     @Override
     @Transactional
     public void saveFrontendLog(FrontendLogRequestDTO dto, String userId, String userAgent) {
-        if (StringUtils.hasText(userId) && !"anonymous".equalsIgnoreCase(userId)) {
-            FrontendLogExample countExample = new FrontendLogExample();
-            countExample.createCriteria().andUserIdEqualTo(userId);
-            long currentCount = frontendLogMapper.countByExample(countExample);
+        FrontendLogExample countExample = new FrontendLogExample();
+        countExample.createCriteria().andUserIdEqualTo(userId);
+        long currentCount = frontendLogMapper.countByExample(countExample);
 
-            if (currentCount >= maxLogsPerUser) {
-                FrontendLogExample selectOldestExample = new FrontendLogExample();
-                selectOldestExample.createCriteria().andUserIdEqualTo(userId);
-                selectOldestExample.setOrderByClause("log_timestamp ASC, id ASC");
+        if (currentCount >= maxLogsPerUser) {
+            FrontendLogExample selectOldestExample = new FrontendLogExample();
+            selectOldestExample.createCriteria().andUserIdEqualTo(userId);
+            selectOldestExample.setOrderByClause("log_timestamp ASC, id ASC");
 
-                PageHelper.startPage(1, 1);
-                List<FrontendLogWithBLOBs> oldestLogs = frontendLogMapper.selectByExampleWithBLOBs(selectOldestExample);
+            PageHelper.startPage(1, 1);
+            List<FrontendLogWithBLOBs> oldestLogs = frontendLogMapper.selectByExampleWithBLOBs(selectOldestExample);
 
-                if (!oldestLogs.isEmpty()) {
-                    frontendLogMapper.deleteByPrimaryKey(oldestLogs.get(0).getId());
-                }
+            if (!oldestLogs.isEmpty()) {
+                frontendLogMapper.deleteByPrimaryKey(oldestLogs.get(0).getId());
             }
         }
 
@@ -119,6 +118,70 @@ public class LogServiceImpl implements LogService {
         }
 
         frontendLogMapper.insertSelective(log);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Transactional
+    public void saveFrontendLogs(List<FrontendLogRequestDTO> list, String userId, String userAgent) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        if (!StringUtils.hasText(userId)) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+
+        List<FrontendLogRequestDTO> toInsert = new ArrayList<>(list);
+        FrontendLogExample countExample = new FrontendLogExample();
+        countExample.createCriteria().andUserIdEqualTo(userId);
+        long currentCount = frontendLogMapper.countByExample(countExample);
+
+        long overflow = currentCount + toInsert.size() - maxLogsPerUser;
+        if (overflow > 0) {
+            if (overflow <= currentCount) {
+                // 删除历史中最旧的 overflow 条
+                FrontendLogExample selectOldest = new FrontendLogExample();
+                selectOldest.createCriteria().andUserIdEqualTo(userId);
+                selectOldest.setOrderByClause("log_timestamp ASC, id ASC");
+                com.github.pagehelper.PageHelper.startPage(1, (int) overflow);
+                List<FrontendLogWithBLOBs> olds = frontendLogMapper.selectByExampleWithBLOBs(selectOldest);
+                for (FrontendLogWithBLOBs old : olds) {
+                    frontendLogMapper.deleteByPrimaryKey(old.getId());
+                }
+            } else {
+                // 现有全删仍不足以腾出空间，说明本次批量本身超过上限
+                // 1) 删除该用户所有旧日志
+                FrontendLogExample delAll = new FrontendLogExample();
+                delAll.createCriteria().andUserIdEqualTo(userId);
+                frontendLogMapper.deleteByExample(delAll);
+                // 2) 仅保留本次批量中最新的 maxLogsPerUser 条
+                toInsert.sort(Comparator.comparing(FrontendLogRequestDTO::getLogTimestamp, Comparator.nullsLast(Comparator.naturalOrder())));
+                int keep = Math.min(maxLogsPerUser, toInsert.size());
+                toInsert = new ArrayList<>(toInsert.subList(toInsert.size() - keep, toInsert.size()));
+            }
+        }
+
+        // 批量插入：按时间顺序构建实体并调用 batchInsert
+        toInsert.sort(Comparator.comparing(FrontendLogRequestDTO::getLogTimestamp, Comparator.nullsLast(Comparator.naturalOrder())));
+        List<FrontendLogWithBLOBs> rows = new ArrayList<>(toInsert.size());
+        for (FrontendLogRequestDTO dto : toInsert) {
+            FrontendLogWithBLOBs log = new FrontendLogWithBLOBs();
+            if (StringUtils.hasText(dto.getLogLevel())) {
+                log.setLogLevel(dto.getLogLevel().toUpperCase());
+            }
+            log.setLogTimestamp(dto.getLogTimestamp());
+            log.setLogMessage(dto.getLogMessage());
+            if (StringUtils.hasText(userId)) {
+                log.setUserId(userId);
+            }
+            if (StringUtils.hasText(userAgent)) {
+                log.setUserAgent(userAgent);
+            }
+            rows.add(log);
+        }
+        if (!rows.isEmpty()) {
+            frontendLogMapper.batchInsert(rows);
+        }
     }
 
     /**

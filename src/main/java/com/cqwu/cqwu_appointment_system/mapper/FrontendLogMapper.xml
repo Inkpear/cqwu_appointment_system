@@ -299,5 +299,22 @@
     --> update frontend_logs
         set log_level = #{logLevel,jdbcType=VARCHAR}, log_timestamp =
         #{logTimestamp,jdbcType=TIMESTAMP}, user_id = #{userId,jdbcType=VARCHAR}, create_time =
-        #{createTime,jdbcType=TIMESTAMP} where id = #{id,jdbcType=BIGINT} </update>
+    #{createTime,jdbcType=TIMESTAMP} where id = #{id,jdbcType=BIGINT} </update>
+
+  <!-- 批量插入前端日志 -->
+  <insert id="batchInsert" parameterType="java.util.List">
+    insert into frontend_logs (
+      log_level, log_timestamp, user_id, create_time, log_message, user_agent
+    ) values
+    <foreach collection="list" item="item" separator=",">
+      (
+        #{item.logLevel,jdbcType=VARCHAR},
+        #{item.logTimestamp,jdbcType=TIMESTAMP},
+        #{item.userId,jdbcType=VARCHAR},
+        COALESCE(#{item.createTime,jdbcType=TIMESTAMP}, NOW()),
+        #{item.logMessage,jdbcType=LONGVARCHAR},
+        #{item.userAgent,jdbcType=LONGVARCHAR}
+      )
+    </foreach>
+  </insert>
 </mapper>

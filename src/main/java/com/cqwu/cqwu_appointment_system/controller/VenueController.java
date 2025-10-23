@@ -143,6 +143,11 @@ public class VenueController {
         if (result == 0) {
             throw new IllegalArgumentException(Constants.DELETE_FAIL_NOT_FOUND);
         }
+        // 广播删除事件，前端可据此刷新列表/缓存
+        notificationService.sendNotification(
+                Constants.SseBroadcast.ALL_USERS,
+                Constants.SseEvent.VENUE_DELETED,
+                ids);
         return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 条记录", result)));
     }
 
@@ -167,7 +172,7 @@ public class VenueController {
         // 批量更新后，很难只发送增量变化，一个简单的策略是发送一个通用更新信号
         // 前端可以接收这个信号后重新拉取列表
         notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_UPDATED,
                 "list_updated" // 发送一个简单的字符串信号
         );
@@ -195,7 +200,6 @@ public class VenueController {
         User currentUser = ((LoginUser) auth.getPrincipal()).getUser();
         log.info("用户 '{}' 正在查询场所 '{}' 从 '{}' 到 '{}' 的日程安排", currentUser.getId(), venueId, start, end);
 
-        // 【重构核心】调用封装了所有复杂逻辑的 Service 方法
         List<CalendarEventDTO> calendarEvents = venueService.getVenueScheduleForUser(venueId, start, end, currentUser);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, calendarEvents));
