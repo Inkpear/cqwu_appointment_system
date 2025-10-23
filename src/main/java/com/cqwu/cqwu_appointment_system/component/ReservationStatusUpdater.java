@@ -4,6 +4,7 @@ import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.entity.*;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
+import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,9 @@ public class ReservationStatusUpdater {
 
     @Autowired
     private ReservationService reservationService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     /**
      * 主调度方法，每分钟执行一次，按顺序管理预约的各个生命周期阶段。
@@ -134,6 +138,11 @@ public class ReservationStatusUpdater {
         int inProgressCount = reservationMapper.updateByExampleSelective(inProgressUpdate, toInProgressExample);
         if (inProgressCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
+            notificationService.sendNotification(
+                "all_users",
+                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                "有预约状态已自动更新为进行中"
+            );
         }
 
         // 将已结束的 CONFIRMED 或 IN_PROGRESS 预约更新为 COMPLETED
@@ -148,6 +157,11 @@ public class ReservationStatusUpdater {
         int completedCount = reservationMapper.updateByExampleSelective(completedUpdate, toCompletedExample);
         if (completedCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 COMPLETED", completedCount);
+            notificationService.sendNotification(
+                "all_users",
+                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                "有预约状态已自动更新为已完成"
+            );
         }
     }
 
@@ -167,6 +181,11 @@ public class ReservationStatusUpdater {
         int count = reservationMapper.updateByExampleSelective(update, example);
         if (count > 0) {
             log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", count);
+            notificationService.sendNotification(
+                "all_users",
+                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                "有待审批的预约已自动过期"
+            );
         }
     }
 }

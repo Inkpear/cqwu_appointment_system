@@ -11,6 +11,7 @@ import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,9 @@ public class VenueController {
 
     @Autowired
     private VenueService venueService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     /**
      * 分页搜索场所信息。
@@ -106,9 +110,20 @@ public class VenueController {
         venueToUpdate.setId(id);
 
         // Service层现在会在找不到时抛出异常
-        venueService.updateVenue(venueToUpdate);
+        int result = venueService.updateVenue(venueToUpdate);
+        if (result == 0) {
+            throw new IllegalArgumentException(Constants.UPDATE_FAIL_NOT_FOUND);
+        }
 
-        return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
+        Venue updatedVenue = venueService.selectVenueById(id);
+
+        // 发送SSE通知，广播给所有用户
+        notificationService.sendNotification(
+                "all_users",
+                Constants.SseEvent.VENUE_UPDATED,
+                updatedVenue);
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS, updatedVenue));
     }
 
     /**
@@ -148,6 +163,15 @@ public class VenueController {
         if (result == 0) {
             throw new IllegalArgumentException(Constants.BATCH_UPDATE_FAIL_NOT_FOUND);
         }
+
+        // 批量更新后，很难只发送增量变化，一个简单的策略是发送一个通用更新信号
+        // 前端可以接收这个信号后重新拉取列表
+        notificationService.sendNotification(
+                "all_users",
+                Constants.SseEvent.VENUE_UPDATED,
+                "list_updated" // 发送一个简单的字符串信号
+        );
+
         return ResponseEntity.ok(AjaxResult.success(String.format("成功更新 %d 条记录", result)));
     }
 

@@ -3,6 +3,7 @@ package com.cqwu.cqwu_appointment_system.controller;
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.entity.VenueCategoryRule;
+import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.VenueCategoryRuleService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +20,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/venue-category-rules")
 @Slf4j
 public class VenueCategoryRuleController {
+    @Autowired
+    private VenueCategoryRuleService venueCategoryRuleService;
 
     @Autowired
-    private VenueCategoryRuleService ruleService;
+    private NotificationService notificationService;
+
+    /**
+     * 获取所有场所分类准入规则
+     * @return
+     */
+    @GetMapping
+    public ResponseEntity<AjaxResult> getAllVenueCategoryRules() {
+        return ResponseEntity.ok(AjaxResult.success(venueCategoryRuleService.getAllVenueCategoryRules()));
+    }
 
     /**
      * [管理员] 为一个分类添加一条新的准入规则。
@@ -36,7 +48,13 @@ public class VenueCategoryRuleController {
         log.info("正在添加新的准入规则: {}", rule);
 
         // Service层会在失败时抛出异常，由GlobalExceptionHandler处理
-        ruleService.addRule(rule);
+        venueCategoryRuleService.addRule(rule);
+
+        notificationService.sendNotification(
+            "all_users",
+            Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
+            "list_updated"
+        );
 
         // 返回 201 Created，并使用 created 方法确保响应体内 code 也为 201
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -54,12 +72,18 @@ public class VenueCategoryRuleController {
     public ResponseEntity<AjaxResult> deleteRule(@PathVariable Long ruleId) {
         log.info("正在删除准入规则, ID: {}", ruleId);
 
-        int result = ruleService.deleteRule(ruleId);
+        int result = venueCategoryRuleService.deleteRule(ruleId);
 
         if (result == 0) {
             // 如果 service 返回0，说明未找到该ID，主动抛出异常
             throw new IllegalArgumentException("未找到要删除的规则");
         }
+
+        notificationService.sendNotification(
+            "all_users",
+            Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
+            "list_updated"
+        );
 
         return ResponseEntity.ok(AjaxResult.success(Constants.DELETE_SUCCESS));
     }

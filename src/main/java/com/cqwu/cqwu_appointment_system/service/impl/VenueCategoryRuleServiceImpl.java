@@ -71,6 +71,12 @@ public class VenueCategoryRuleServiceImpl implements VenueCategoryRuleService {
         return ruleMapper.insertSelective(rule);
     }
 
+    @Override
+    public List<VenueCategoryRule> getAllVenueCategoryRules() {
+        log.debug("正在获取所有场所分类准入规则");
+        return ruleMapper.selectByExample(new VenueCategoryRuleExample());
+    }
+
     /**
      * {@inheritDoc}
      */

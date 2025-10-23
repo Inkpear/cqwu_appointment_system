@@ -7,18 +7,19 @@ import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional; // 推荐为定时任务加上事务
-
+import com.cqwu.cqwu_appointment_system.service.NotificationService;
+import com.cqwu.cqwu_appointment_system.service.VenueService;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @description 定时任务组件，负责周期性地计算并更新所有场所的实时状态 (realtime_status)。
@@ -32,7 +33,13 @@ public class VenueStatusUpdater {
     private VenueMapper venueMapper;
 
     @Autowired
+    private VenueService venueService;
+
+    @Autowired
     private TimeBlockMapper timeBlockMapper;
+
+    @Autowired
+    private NotificationService notificationService;
 
     /**
      * 主调度方法，每分钟执行一次，编排整个场所实时状态的更新流程。
@@ -41,21 +48,20 @@ public class VenueStatusUpdater {
     @Scheduled(cron = "0 * * * * ?")
     @Transactional // 为整个更新操作添加事务性，确保数据一致性
     public void updateVenueRealtimeStatus() {
-        log.info("【定时任务】开始更新场所实时状态...");
+        log.info("开始执行场所实时状态更新任务...");
 
-        // 获取基础数据：当前时间和所有被占用的场地ID
-        LocalDateTime now = LocalDateTime.now();
-        Set<Long> occupiedVenueIds = getCurrentlyOccupiedVenueIds(now);
-
-        // 获取所有需要管理的场所
+        List<Venue> venuesToUpdate = new ArrayList<>();
         List<Venue> allVenues = venueMapper.selectByExample(new VenueExample());
         if (allVenues.isEmpty()) {
-            log.info("【定时任务】没有找到任何场所，任务结束。");
+            log.info("没有找到任何场所，任务结束。");
             return;
         }
 
+        // 获取当前时间
+        LocalDateTime now = LocalDateTime.now();
+        Set<Long> occupiedVenueIds = getCurrentlyOccupiedVenueIds(now);
+
         // 计算并收集状态需要更新的场所
-        List<Venue> venuesToUpdate = new ArrayList<>();
         for (Venue venue : allVenues) {
             String newRealtimeStatus = calculateNewStatus(venue, occupiedVenueIds, now.toLocalTime());
 
@@ -70,12 +76,17 @@ public class VenueStatusUpdater {
 
         // 如果有需要更新的场所，则执行批量更新
         if (!venuesToUpdate.isEmpty()) {
-            venueMapper.updateRealtimeStatusBatch(venuesToUpdate);
-            log.info("【定时任务】任务完成：共批量更新了 {} 个场所的实时状态。", venuesToUpdate.size());
+            int updatedCount = venueService.updateRealtimeStatusBatch(venuesToUpdate);
+            log.info("成功更新了 {} 个场所的实时状态。", updatedCount);
+            notificationService.sendNotification(
+                    "all_users",
+                    Constants.SseEvent.VENUE_UPDATED,
+                    "list_updated");
         } else {
-            // 使用 debug 级别，因为状态不变是常态，避免日志刷屏
-            log.debug("【定时任务】任务完成：没有场所状态需要更新。");
+            log.info("所有场所的实时状态均无需更新。");
         }
+
+        log.info("场所实时状态更新任务执行完毕。");
     }
 
     /**

@@ -18,6 +18,13 @@ public interface VenueCategoryRuleService {
     List<VenueCategoryRule> findRulesByCategoryId(Long categoryId);
 
     /**
+     * 获取系统中所有的场所分类准入规则。
+     *
+     * @return 包含所有准入规则的列表 (List<VenueCategoryRule>)。
+     */
+    List<VenueCategoryRule> getAllVenueCategoryRules();
+
+    /**
      * 为指定的场所分类添加一条新的准入规则。
      *
      * @param rule 包含 categoryId 和 allowedUserType 的规则实体。

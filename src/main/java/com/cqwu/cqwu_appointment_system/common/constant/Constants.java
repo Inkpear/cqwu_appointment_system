@@ -128,4 +128,27 @@ public class Constants {
         public static final String CANCELLED = "CANCELLED"; // 已取消
         public static final String EXPIRED = "EXPIRED"; // 已过期（待审批的申请错过了开始时间）
     }
+
+    /**
+     * 定时任务白名单配置（仅允许访问的包名，如其他需要可以自行添加）
+     */
+    public static final String[] TASK_WHITELIST = { "com.cqwu" };
+
+    /**
+     * SSE (Server-Sent Events) 事件名称常量
+     */
+    public static class SseEvent {
+        public static final String CONNECTION_ESTABLISHED = "sse-connection-established";
+        public static final String NEW_RESERVATION = "new-reservation";
+        public static final String RESERVATION_APPROVED = "reservation-approved";
+        public static final String RESERVATION_REJECTED = "reservation-rejected";
+        public static final String RESERVATION_CANCELLED_BY_USER = "reservation-cancelled-by-user";
+        public static final String RESERVATION_CANCELLED_BY_ADMIN = "reservation-cancelled-by-admin";
+        public static final String VENUE_UPDATED = "venue-updated";
+        public static final String VENUE_CATEGORY_CREATED = "venue-category-created";
+        public static final String VENUE_CATEGORY_UPDATED = "venue-category-updated";
+        public static final String VENUE_CATEGORY_DELETED = "venue-category-deleted";
+        public static final String VENUE_CATEGORY_RULE_UPDATED = "venue-category-rule-updated";
+        public static final String RESERVATION_AUTO_UPDATED = "reservation-auto-updated";
+    }
 }

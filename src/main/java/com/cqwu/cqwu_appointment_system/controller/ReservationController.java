@@ -11,6 +11,7 @@ import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
@@ -38,6 +39,9 @@ public class ReservationController {
 
     @Autowired
     private VenueService venueService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     /**
      * 用户创建一个新的预约申请。
@@ -74,6 +78,13 @@ public class ReservationController {
                 currentUser,
                 venue
             );
+
+        // 向管理员发送通知
+        notificationService.sendNotification(
+            "admin", // 假设有一个统一的管理员频道
+            Constants.SseEvent.NEW_RESERVATION,
+            "有新的预约申请，请及时处理"
+        );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
             AjaxResult.created("预约申请已提交，等待审批", createdReservation)
@@ -112,6 +123,13 @@ public class ReservationController {
         ReservationWithBLOBs approvedReservation =
             reservationService.approveReservation(request);
 
+        // 向用户发送通知
+        notificationService.sendNotification(
+            approvedReservation.getCreatorUserId(),
+            Constants.SseEvent.RESERVATION_APPROVED,
+            String.format("您的预约 '%s' 已被批准", approvedReservation.getTitle())
+        );
+
         return ResponseEntity.ok(
             AjaxResult.success("申请已批准", approvedReservation)
         );
@@ -143,7 +161,14 @@ public class ReservationController {
                 adminUser,
                 request.getApprovalComment()
             );
-        reservationService.rejectReservation(updateRequest);
+        ReservationWithBLOBs rejectedReservation = reservationService.rejectReservation(updateRequest);
+
+        // 向用户发送通知
+        notificationService.sendNotification(
+            rejectedReservation.getCreatorUserId(),
+            Constants.SseEvent.RESERVATION_REJECTED,
+            String.format("您的预约 '%s' 已被拒绝，原因: %s", rejectedReservation.getTitle(), rejectedReservation.getApprovalComment())
+        );
 
         return ResponseEntity.ok(AjaxResult.success("申请已拒绝"));
     }
@@ -166,7 +191,24 @@ public class ReservationController {
 
         UpdateReservationStatusRequest request =
             UpdateReservationStatusRequest.forCancellation(id, currentUser);
-        reservationService.cancelReservation(request);
+        ReservationWithBLOBs cancelledReservation = reservationService.cancelReservation(request);
+
+        // 如果是用户自己取消，通知管理员
+        // 如果是管理员取消，通知用户
+        if (currentUser.getId().equals(cancelledReservation.getCreatorUserId())) {
+            notificationService.sendNotification(
+                "admin",
+                Constants.SseEvent.RESERVATION_CANCELLED_BY_USER,
+                String.format("用户 '%s' 取消了预约 '%s'", currentUser.getName(), cancelledReservation.getTitle())
+            );
+        } else {
+            notificationService.sendNotification(
+                cancelledReservation.getCreatorUserId(),
+                Constants.SseEvent.RESERVATION_CANCELLED_BY_ADMIN,
+                String.format("您的预约 '%s' 已被管理员取消", cancelledReservation.getTitle())
+            );
+        }
+
 
         return ResponseEntity.ok(AjaxResult.success("预约已取消"));
     }
