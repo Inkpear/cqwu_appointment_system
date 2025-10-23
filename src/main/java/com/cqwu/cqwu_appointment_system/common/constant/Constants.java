@@ -139,16 +139,35 @@ public class Constants {
      */
     public static class SseEvent {
         public static final String CONNECTION_ESTABLISHED = "sse-connection-established";
+        public static final String PING = "sse-ping";
         public static final String NEW_RESERVATION = "new-reservation";
         public static final String RESERVATION_APPROVED = "reservation-approved";
         public static final String RESERVATION_REJECTED = "reservation-rejected";
         public static final String RESERVATION_CANCELLED_BY_USER = "reservation-cancelled-by-user";
         public static final String RESERVATION_CANCELLED_BY_ADMIN = "reservation-cancelled-by-admin";
         public static final String VENUE_UPDATED = "venue-updated";
+        public static final String VENUE_DELETED = "venue-deleted";
         public static final String VENUE_CATEGORY_CREATED = "venue-category-created";
         public static final String VENUE_CATEGORY_UPDATED = "venue-category-updated";
         public static final String VENUE_CATEGORY_DELETED = "venue-category-deleted";
         public static final String VENUE_CATEGORY_RULE_UPDATED = "venue-category-rule-updated";
         public static final String RESERVATION_AUTO_UPDATED = "reservation-auto-updated";
+    }
+
+    /**
+     * SSE 广播相关常量
+     */
+    public static class SseBroadcast {
+        public static final String ALL_USERS = "all_users";
+    }
+
+    /**
+     * 日志相关常量
+     */
+    public static class LogLevel {
+        public static final String DEBUG = "DEBUG";
+        public static final String INFO = "INFO";
+        public static final String WARN = "WARN";
+        public static final String ERROR = "ERROR";
     }
 }
