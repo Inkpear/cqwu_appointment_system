@@ -132,15 +132,15 @@
 *   **描述**: 用户提交一个新的场所预约申请，初始状态为 `PENDING`。
 *   **权限**: 已认证用户
 *   **Request Body**:
-    ```json
-    {
-      "venueId": 1,
-      "startDatetime": "2025-11-10T14:00:00",
-      "endDatetime": "2025-11-10T16:00:00",
-      "title": "团队项目讨论",
-      "purpose": "关于毕业设计的最终讨论"
-    }
-    ```
+        ```json
+        {
+            "venueId": 1,
+            "startDatetime": "2025-11-10T14:00:00",
+            "endDatetime": "2025-11-10T16:00:00",
+            "title": "团队项目讨论",
+            "purpose": "关于毕业设计的最终讨论"
+        }
+        ```
 *   **Success Response (`201 Created`)**:
     ```json
     {
@@ -148,6 +148,10 @@
         "msg": "预约申请已提交，等待审批",
         "data": {
             "id": 101,
+            "venueId": 1,
+            "title": "团队项目讨论",
+            "startDatetime": "2025-11-10T14:00:00",
+            "endDatetime": "2025-11-10T16:00:00",
             "status": "PENDING"
         }
     }
@@ -315,6 +319,30 @@
 *   **权限**: `ADMIN` 或 `ROOT`
 *   **Path Variable**: `id` (`Long`) - 场所ID。
 *   **Request Body**: `UpdateVenueRequest` DTO (包含要更新的字段)。
+
+        UpdateVenueRequest 字段说明 (均为可选，用于部分更新)：
+
+        - `name` (String, max 100)
+        - `location` (String, max 200)
+        - `floor` (Integer)
+        - `capacity` (Integer, >=0)
+        - `categoryId` (Long)
+        - `equipment` (String)
+        - `baseStatus` (String, 可选值: AVAILABLE, MAINTENANCE, DISABLED)
+        - `openTime` (String, 格式: `HH:mm:ss`)
+        - `closeTime` (String, 格式: `HH:mm:ss`)
+        - `requiresApproval` (Boolean)
+        - `maxBookingDurationMinutes` (Integer)
+
+        示例：
+        ```json
+        {
+            "name": "多功能教室 A101",
+            "requiresApproval": true,
+            "baseStatus": "MAINTENANCE",
+            "maxBookingDurationMinutes": 180
+        }
+        ```
 *   **Success Response (`200 OK`)**。
 
 ### **3.6 批量更新场所信息**
@@ -326,10 +354,10 @@
     ```json
     {
       "ids": [1, 2, 3],
-      "venueData": {
-        "requiresApproval": true,
-        "baseStatus": "MAINTENANCE"
-      }
+            "venueData": {
+                "requiresApproval": true,
+                "baseStatus": "MAINTENANCE"
+            }
     }
     ```
 *   **Success Response (`200 OK`)**。
@@ -437,41 +465,100 @@
 
 *   **Endpoint**: `GET /api/users`
 *   **权限**: `ROOT`
-*   **Query Parameters**:
-    *   `page`, `size` (`Integer`, `Optional`): 分页参数。
-    *   `id` (`String`, `Optional`): 学号/工号 (模糊匹配)。
-    *   `name` (`String`, `Optional`): 姓名 (模糊匹配)。
-    *   `role` (`String`, `Optional`): 角色 (e.g., `user`, `admin`)。
-    *   `userType` (`Byte`, `Optional`): 用户类型 (e.g., `1` for 学生)。
-*   **Success Response (`200 OK`)**: `data` 字段为 `PageDTO<User>`。
+*   **Query Parameters** (`UserQuery` DTO)：
+    *   `page` (`Integer`, `Optional`): 页码，默认 `0`，必须 ≥ 0。
+    *   `size` (`Integer`, `Optional`): 每页数量，默认 `10`，必须 ≥ 1。
+    *   `id` (`String`, `Optional`): 学号/工号，支持模糊匹配。
+    *   `name` (`String`, `Optional`): 姓名，支持模糊匹配。
+    *   `role` (`String`, `Optional`): 角色，取值示例：`USER`、`ADMIN`、`ROOT`。
+    *   `userType` (`Byte`, `Optional`): 用户类型，常用取值 `0`(其他)、`1`(学生)、`2`(教师)。
+*   **Success Response (`200 OK`)**:
+    ```json
+    {
+        "code": 200,
+        "msg": "查询成功",
+        "data": {
+            "content": [
+                {
+                    "id": "20230001",
+                    "userType": 1,
+                    "name": "张三",
+                    "sex": 1,
+                    "college": "计算机工程学院",
+                    "major": "软件工程",
+                    "role": "USER",
+                    "lastLoginTime": "2025-10-20T23:12:00",
+                    "createTime": "2024-09-01T08:00:00",
+                    "updateTime": "2025-10-15T09:30:00"
+                }
+            ],
+            "pageNumber": 0,
+            "pageSize": 10,
+            "totalElements": 128,
+            "totalPages": 13,
+            "last": false
+        }
+    }
+    ```
 
 ### **6.2 获取用户详情**
 
 *   **Endpoint**: `GET /api/users/{id}`
 *   **权限**: `ROOT`
 *   **Path Variable**: `id` (`String`) - 用户ID (学号/工号)。
-*   **Success Response (`200 OK`)**: `data` 字段为单个 `User` 实体。
+*   **Success Response (`200 OK`)**:
+    ```json
+    {
+        "code": 200,
+        "msg": "查询成功",
+        "data": {
+            "id": "20230001",
+            "userType": 1,
+            "name": "张三",
+            "sex": 1,
+            "college": "计算机工程学院",
+            "major": "软件工程",
+            "role": "USER",
+            "lastLoginTime": "2025-10-20T23:12:00",
+            "createTime": "2024-09-01T08:00:00",
+            "updateTime": "2025-10-15T09:30:00"
+        }
+    }
+    ```
 
 ### **6.3 更新用户信息**
 
 *   **Endpoint**: `PUT /api/users/{id}`
 *   **权限**: `ROOT`
 *   **Path Variable**: `id` (`String`) - 用户ID。
-*   **Request Body**: `UpdateUserRequest` DTO (可包含 `name`, `userType`, `college`, `major`)。
-*   **Success Response (`200 OK`)**。
+*   **Request Body** (`UpdateUserRequest` DTO，所有字段可选)：
+        *   `name` (`String`, ≤ 50)
+        *   `userType` (`Byte`)
+        *   `college` (`String`, ≤ 100)
+        *   `major` (`String`, ≤ 100)
+        ```json
+        {
+            "name": "李四",
+            "userType": 2,
+            "college": "继续教育学院",
+            "major": "行政管理"
+        }
+        ```
+*   **Success Response (`200 OK`)**: 当数据有变动时，`msg` 为 “更新成功”；否则返回 “数据未发生变化”。
 
 ### **6.4 更新用户角色**
 
 *   **Endpoint**: `PUT /api/users/{id}/role`
 *   **权限**: `ROOT`
 *   **Path Variable**: `id` (`String`) - 用户ID。
-*   **Request Body**:
-    ```json
-    {
-      "role": "ADMIN"
-    }
-    ```
-*   **Success Response (`200 OK`)**。
+*   **Request Body** (`UpdateUserRoleRequest` DTO)：
+        ```json
+        {
+            "role": "ADMIN"
+        }
+        ```
+        角色合法值：`ROOT`、`ADMIN`、`USER`。
+*   **Success Response (`200 OK`)**: 当角色已修改时，`msg` 为 “角色更新成功”；若角色未变化，`msg` 为 “数据未发生变化”。
 
 ---
 
@@ -484,43 +571,258 @@
 *   **Endpoint**: `POST /api/sync/schedule/courses`
 *   **描述**: 强制插入或更新课程安排。此操作会覆盖所有时间冲突的旧课程和用户预约。
 *   **权限**: `ROOT`
-*   **Request Body**:
-    ```json
-    [
-      {
-        "venueId": 1,
-        "startDatetime": "2025-10-22T08:00:00",
-        "endDatetime": "2025-10-22T10:00:00",
-        "title": "高等数学"
-      }
-    ]
-    ```
-*   **Success Response (`200 OK`)**: 返回成功同步的数量。
+*   **Request Body**: `SyncCourseRequestDTO` 数组，每个元素字段均为必填：
+        *   `venueId` (`Long`): 场所 ID。
+        *   `startDatetime` (`String`, ISO-8601): 开始时间。
+        *   `endDatetime` (`String`, ISO-8601): 结束时间。
+        *   `title` (`String`): 课程标题。
+        ```json
+        [
+            {
+                "venueId": 1,
+                "startDatetime": "2025-10-22T08:00:00",
+                "endDatetime": "2025-10-22T10:00:00",
+                "title": "高等数学"
+            }
+        ]
+        ```
+        > 后端会将 `blockType` 强制写为 `COURSE`，无需前端传入。
+*   **Success Response (`200 OK`)**:
+        ```json
+        {
+                "code": 200,
+                "msg": "成功同步 12 条课程记录"
+        }
+        ```
 
 ### **7.2 按场所清空课程安排**
 
 *   **Endpoint**: `DELETE /api/sync/schedule/courses`
 *   **描述**: 清空一个或多个指定场所的所有课程安排。
 *   **权限**: `ROOT`
-*   **Request Body**:
-    ```json
-    {
-      "venueIds": [1, 2]
-    }
-    ```
-*   **Success Response (`200 OK`)**: 返回成功清空的数量。
+*   **Request Body** (`ClearCoursesRequest` DTO)：
+        *   `venueIds` (`Long[]`): 需清空课程的场所 ID 列表，不能为空。
+        ```json
+        {
+            "venueIds": [1, 2]
+        }
+        ```
+*   **Success Response (`200 OK`)**:
+        ```json
+        {
+                "code": 200,
+                "msg": "成功清空 5 条课程记录"
+        }
+        ```
 
 ### **7.3 按范围清空课程安排**
 
 *   **Endpoint**: `DELETE /api/sync/schedule/courses/by-range`
 *   **描述**: 清空单个指定场所在特定时间范围内的所有课程安排。
 *   **权限**: `ROOT`
-*   **Request Body**:
+*   **Request Body** (`ClearCoursesByRangeRequest` DTO)：
+        *   `venueId` (`Long`): 场所 ID。
+        *   `start` (`String`, ISO-8601): 起始时间。
+        *   `end` (`String`, ISO-8601): 结束时间。
+        ```json
+        {
+            "venueId": 1,
+            "start": "2025-11-01T00:00:00",
+            "end": "2025-11-08T00:00:00"
+        }
+        ```
+*   **Success Response (`200 OK`)**:
+        ```json
+        {
+                "code": 200,
+                "msg": "成功清空 3 条范围内的课程记录"
+        }
+        ```
+
+---
+
+## **8. 日志模块 (`/api/logs`)**
+
+**注意：此模块下所有接口默认需要 `ROOT` 权限。**
+
+### **8.1 查询后端日志文件**
+
+*   **Endpoint**: `GET /api/logs/backend`
+*   **描述**: 读取后端日志文件的最新内容，支持按级别筛选、限制行数以及倒序游标查询。
+*   **Query Parameters**:
+    *   `level` (`String`, `Required`): 日志级别，支持 `debug`、`info`、`warn`、`error`。
+    *   `lines` (`Integer`, `Optional`): 返回的日志行数，默认 `100`。
+    *   `beforeTimestamp` (`String`, `Optional`): 仅返回该时间点之前的日志，格式 `YYYY-MM-DDTHH:mm:ss`。
+*   **Success Response (`200 OK`)**:
     ```json
     {
-      "venueId": 1,
-      "start": "2025-11-01T00:00:00",
-      "end": "2025-11-08T00:00:00"
+        "code": 200,
+        "msg": "查询成功",
+        "data": [
+            "2025-10-21 10:22:33.123  INFO  ... 请求已开始",
+            "2025-10-21 10:22:34.456 ERROR ... 数据库连接失败"
+        ]
     }
     ```
-*   **Success Response (`200 OK`)**: 返回成功清空的数量。
+
+### **8.2 上报前端日志**
+
+*   **Endpoint**: `POST /api/logs/frontend`
+*   **描述**: 前端主动上报运行时错误或关键埋点。后端会记录上报用户以及 `User-Agent`。
+*   **Headers**:
+    *   `User-Agent` (`String`, `Required`)
+*   **Request Body** (`FrontendLogRequestDTO` DTO)：
+    *   `logLevel` (`String`): 日志级别，例如 `INFO`、`ERROR`。
+    *   `logMessage` (`String`): 详细日志内容。
+    *   `logTimestamp` (`String`, ISO-8601): 前端产生日志的时间。
+    ```json
+    {
+      "logLevel": "ERROR",
+      "logMessage": "chunk-xxx.js 加载失败",
+      "logTimestamp": "2025-10-21T10:25:30"
+    }
+    ```
+*   **Success Response (`200 OK`)**:
+    ```json
+    {
+        "code": 200,
+        "msg": "前端日志上报成功。"
+    }
+    ```
+
+### **8.3 分页查询前端日志**
+
+*   **Endpoint**: `GET /api/logs/frontend/query`
+*   **描述**: 按条件分页检索前端上报日志，返回 `PageDTO<FrontendLogWithBLOBs>`。
+*   **Query Parameters** (`FrontendLogQuery` DTO)：
+    *   `page` (`Integer`, `Optional`): 页码，默认 `0`，≥ 0。
+    *   `size` (`Integer`, `Optional`): 每页数量，默认 `10`，≥ 1。
+    *   `logLevel` (`String`, `Optional`): 日志级别精确匹配。
+    *   `userId` (`String`, `Optional`): 上报人学号/工号。
+    *   `startTime` / `endTime` (`String`, `Optional`): 时间范围过滤，ISO-8601 格式。
+*   **Success Response (`200 OK`)**:
+    ```json
+    {
+        "code": 200,
+        "msg": "查询成功",
+        "data": {
+            "content": [
+                {
+                    "id": 101,
+                    "logLevel": "ERROR",
+                    "logTimestamp": "2025-10-21T10:25:30",
+                    "userId": "20230001",
+                    "logMessage": "chunk-xxx.js 加载失败",
+                    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+                    "createTime": "2025-10-21T10:25:31"
+                }
+            ],
+            "pageNumber": 0,
+            "pageSize": 10,
+            "totalElements": 56,
+            "totalPages": 6,
+            "last": false
+        }
+    }
+    ```
+
+---
+
+## **9. 系统监控模块 (`/api/monitor`)**
+
+### **9.1 获取系统综合信息**
+
+*   **Endpoint**: `GET /api/monitor/system-info`
+*   **权限**: `ADMIN` 或 `ROOT`
+*   **描述**: 返回服务器、CPU、内存、磁盘的实时监控数据，对应 `SystemInfoDTO`。
+*   **Success Response (`200 OK`)**:
+    ```json
+    {
+        "code": 200,
+        "msg": "操作成功",
+        "data": {
+            "serverInfo": {
+                "serverName": "cqwu-app",
+                "osName": "Linux",
+                "osArch": "amd64",
+                "osVersion": "5.15.0",
+                "jvmName": "OpenJDK 64-Bit Server VM",
+                "jvmVersion": "17.0.9",
+                "javaHome": "/usr/lib/jvm/java-17-openjdk",
+                "projectDir": "/srv/cqwu_appointment_system"
+            },
+            "cpuInfo": {
+                "cpuModel": "Intel(R) Xeon(R)",
+                "physicalCoreCount": 4,
+                "logicalCoreCount": 8,
+                "systemUsage": 12.3,
+                "userUsage": 10.8,
+                "ioWait": 1.1,
+                "idle": 75.8,
+                "totalUsage": 24.2
+            },
+            "memoryInfo": {
+                "total": 16384.0,
+                "used": 8042.5,
+                "available": 8341.5,
+                "usageRate": 49.1
+            },
+            "diskInfo": [
+                {
+                    "mountPoint": "/",
+                    "fileSystemType": "ext4",
+                    "totalSpace": 512000.0,
+                    "usedSpace": 301245.6,
+                    "freeSpace": 210754.4,
+                    "usageRate": 58.8
+                }
+            ]
+        }
+    }
+    ```
+
+---
+
+## **通知与实时更新（基于 SSE）**
+
+系统使用 Server-Sent Events (SSE) 向前端推送实时事件（单点或广播）。前端可订阅以下事件以获取系统状态变更通知。
+
+### **SSE 订阅**
+
+*   **Endpoint**: `GET /api/notifications/subscribe`
+*   **描述**: 建立一个 SSE 连接，服务器会为当前认证用户返回一个持续的事件流。前端需在 `Authorization: Bearer <token>` 头中携带访问令牌。
+*   **权限**: 已认证用户
+
+### **常见事件名称 (Constants.SseEvent)**
+
+以下事件名称来自后端常量 `Constants.SseEvent`，事件名保持不变，payload 根据事件类型可能为对象或简单标识：
+
+- `sse-connection-established`：连接建立时服务器发送的握手事件，payload 为连接确认信息（字符串）。
+- `new-reservation`：新预约已创建（管理员需处理），payload 推荐为简短对象：{ "reservationId": 123, "venueId": 1, "title": "..." }
+- `reservation-approved`：预约被管理员批准，payload 为被批准的预约简要信息或完整 `Reservation` 对象。
+- `reservation-rejected`：预约被拒绝，payload 通常包含预约 id 与拒绝原因。
+- `reservation-cancelled-by-user`：用户主动取消预约，payload 为预约 id。
+- `reservation-cancelled-by-admin`：管理员取消预约，payload 为预约 id 与原因。
+- `venue-updated`：单个场所更新或批量更新后广播。payload 可为单个 `Venue` 对象或字符串 `"list_updated"`（表示列表已变化，前端建议重新拉取列表）。
+- `venue-category-created`：场所分类创建，payload 为新创建的 `VenueCategory` 对象。
+- `venue-category-updated`：场所分类更新，payload 为更新后的 `VenueCategory` 对象。
+- `venue-category-deleted`：场所分类删除，payload 为被删除的分类 ID 列表，例如 `[1,2]`。
+- `venue-category-rule-updated`：分类规则变更（新增/删除），payload 常为 `"list_updated"`。
+- `reservation-auto-updated`：定时任务触发的预约状态自动变更（例如过期、状态推进），payload 为简短描述字符串或受影响的预约 ID 列表。
+
+### **示例：使用 JavaScript 订阅 SSE**
+
+```javascript
+const evtSource = new EventSource('/api/notifications/subscribe', { withCredentials: true });
+
+evtSource.addEventListener('sse-connection-established', (e) => console.log('connected', e.data));
+evtSource.addEventListener('venue-updated', (e) => {
+    const payload = JSON.parse(e.data);
+    // 如果 payload === 'list_updated' 则重新请求场所列表，否则更新单个场所 UI
+});
+
+// 通用错误/关闭处理
+evtSource.onerror = (err) => { console.error('SSE error', err); };
+```
+
+> 注意：SSE 连接在某些代理或负载均衡器下可能需要特殊配置以保持连接；前端应实现自动重连策略并能容忍重复事件。
