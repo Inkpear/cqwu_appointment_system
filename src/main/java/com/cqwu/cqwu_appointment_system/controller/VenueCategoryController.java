@@ -4,7 +4,9 @@ import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.dto.BatchDeleteRequest;
 import com.cqwu.cqwu_appointment_system.entity.VenueCategory;
+import com.cqwu.cqwu_appointment_system.entity.VenueCategoryRule;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
+import com.cqwu.cqwu_appointment_system.service.VenueCategoryRuleService;
 import com.cqwu.cqwu_appointment_system.service.VenueCategoryService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,6 +29,9 @@ public class VenueCategoryController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private VenueCategoryRuleService venueCategoryRuleService;
 
     /**
      * 获取所有场所分类的列表。
@@ -71,10 +76,9 @@ public class VenueCategoryController {
 
         venueCategoryService.createVenueCategory(venueCategory);
         notificationService.sendNotification(
-            "all_users",
-            Constants.SseEvent.VENUE_CATEGORY_CREATED,
-            venueCategory
-        );
+                "all_users",
+                Constants.SseEvent.VENUE_CATEGORY_CREATED,
+                venueCategory);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(AjaxResult.created(Constants.CREATE_SUCCESS, venueCategory));
@@ -89,16 +93,16 @@ public class VenueCategoryController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
-    public ResponseEntity<AjaxResult> updateVenueCategory(@PathVariable("id") Long id, @RequestBody @Valid VenueCategory venueCategory) {
+    public ResponseEntity<AjaxResult> updateVenueCategory(@PathVariable("id") Long id,
+            @RequestBody @Valid VenueCategory venueCategory) {
         log.info("管理员正在更新分类, ID: {}", id);
         venueCategory.setId(id);
 
         venueCategoryService.updateVenueCategory(venueCategory);
         notificationService.sendNotification(
-            "all_users",
-            Constants.SseEvent.VENUE_CATEGORY_UPDATED,
-            venueCategory
-        );
+                "all_users",
+                Constants.SseEvent.VENUE_CATEGORY_UPDATED,
+                venueCategory);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
     }
@@ -121,10 +125,25 @@ public class VenueCategoryController {
         }
 
         notificationService.sendNotification(
-            "all_users",
-            Constants.SseEvent.VENUE_CATEGORY_DELETED,
-            ids
-        );
+                "all_users",
+                Constants.SseEvent.VENUE_CATEGORY_DELETED,
+                ids);
         return ResponseEntity.ok(AjaxResult.success(String.format("成功删除 %d 个分类", ids.length)));
+    }
+
+    /**
+     * 根据分类ID，获取其下所有的准入规则。
+     *
+     * @param categoryId 场所分类的ID
+     * @return 该分类下的所有准入规则列表
+     */
+    @GetMapping("/{categoryId}/rules")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getRulesForCategory(@PathVariable Long categoryId) {
+        log.info("查询分类 ID: {} 的所有准入规则", categoryId);
+        
+        List<VenueCategoryRule> rules = venueCategoryRuleService.findRulesByCategoryId(categoryId);
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, rules));
     }
 }
