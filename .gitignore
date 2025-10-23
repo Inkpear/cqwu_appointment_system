@@ -38,3 +38,6 @@ build/
 
 #临时sql
 temp.sql
+
+# AI提示词
+copilot-instructions.md
