@@ -78,7 +78,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private static final class EmitterEntry {
         final SseEmitter emitter;
-        final String role; // 用户角色（ADMIN/ROOT/USER）
+        final String role; // 用户角色（ADMIN/ROOT/USER/MONITOR）
 
         EmitterEntry(SseEmitter emitter, String role) {
             this.emitter = emitter;
@@ -157,6 +157,7 @@ public class NotificationServiceImpl implements NotificationService {
             }
         } else {
             List<EmitterEntry> list = this.emitters.get(userId);
+            sendToRole(Constants.UserRoleType.ROLE_MONITOR, eventName, data);
             if (list != null && !list.isEmpty()) {
                 list.forEach(entry -> sendToEmitter(entry.emitter, userId, eventName, data));
             } else {
@@ -184,7 +185,7 @@ public class NotificationServiceImpl implements NotificationService {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                if (role.equalsIgnoreCase(entry.role)) {
+                if (role.equalsIgnoreCase(entry.role) || entry.role.equalsIgnoreCase(Constants.UserRoleType.ROLE_MONITOR)) {
                     sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });
@@ -194,17 +195,16 @@ public class NotificationServiceImpl implements NotificationService {
     /** {@inheritDoc} */
     @Override
     public void sendToRoles(List<String> roles, String eventName, Object data) {
-        if (roles == null || roles.isEmpty())
+        if (roles == null)
             return;
+        roles.add(new String(Constants.UserRoleType.ROLE_MONITOR));
+
         emitters.forEach((userId, list) -> {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                for (String r : roles) {
-                    if (r != null && r.equalsIgnoreCase(entry.role)) {
-                        sendToEmitter(entry.emitter, userId, eventName, data);
-                        break;
-                    }
+                if (roles.contains(entry.role)) {
+                    sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });
         });

@@ -18,14 +18,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/monitor")
 @Slf4j
-@PreAuthorize("hasRole('ADMIN') or hasRole('ROOT')")
+@PreAuthorize("hasRole('ADMIN') or hasRole('ROOT') or hasRole('MONITOR')")
 public class SystemMonitorController {
 
     @Autowired
     private SystemMonitorService systemMonitorService;
 
     /**
-     * [ADMIN] or [ROOT] 获取系统综合监控信息。
+     * [ADMIN] or [ROOT] or [MONITOR] 获取系统综合监控信息。
      * 此端点返回服务器、CPU、内存和磁盘的详细状态。
      *
      * @return 成功时，返回包含 {@link SystemInfoDTO} 的 ResponseEntity 响应体 (HTTP 200)；
