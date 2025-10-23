@@ -42,7 +42,7 @@ public class ValidationUtils {
     }
 
     /**
-     * 【新增】校验一个范围的开始值是否严格小于结束值。
+     * 校验一个范围的开始值是否严格小于结束值。
      * 适用于任何实现了 Comparable 接口的类型 (如 LocalTime, LocalDateTime, Integer)。
      *
      * @param start   范围的开始值

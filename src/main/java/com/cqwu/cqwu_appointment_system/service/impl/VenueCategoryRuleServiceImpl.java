@@ -9,7 +9,7 @@ import com.cqwu.cqwu_appointment_system.service.VenueCategoryRuleService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.Assert; // 【优化】统一使用 Spring 的 Assert
+import org.springframework.util.Assert;
 
 import java.util.List;
 
@@ -83,7 +83,7 @@ public class VenueCategoryRuleServiceImpl implements VenueCategoryRuleService {
     @Override
     public int deleteRule(Long ruleId) {
         log.info("正在删除准入规则, ID: {}", ruleId);
-        // 【优化】增加参数校验
+        // 增加参数校验
         Assert.notNull(ruleId, "要删除的规则ID不能为空");
         return ruleMapper.deleteByPrimaryKey(ruleId);
     }

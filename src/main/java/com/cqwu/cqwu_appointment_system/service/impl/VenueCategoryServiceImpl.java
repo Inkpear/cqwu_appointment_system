@@ -56,14 +56,14 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
         log.info("正在删除场所分类, ID: {}", id);
         Assert.notNull(id, "要删除的分类ID不能为空");
 
-        // 【核心业务逻辑】检查是否有场所仍在使用此分类
+        // 检查是否有场所仍在使用此分类
         VenueExample example = new VenueExample();
         example.createCriteria().andCategoryIdEqualTo(id);
         if (venueMapper.countByExample(example) > 0) {
             throw new IllegalStateException("无法删除，仍有场所正在使用此分类");
         }
 
-        // 【数据完整性】级联删除与此分类关联的所有准入规则
+        // 级联删除与此分类关联的所有准入规则
         VenueCategoryRuleExample ruleExample = new VenueCategoryRuleExample();
         ruleExample.createCriteria().andCategoryIdEqualTo(id);
         int deletedRules = venueCategoryRuleMapper.deleteByExample(ruleExample);

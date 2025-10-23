@@ -39,7 +39,7 @@ public class UserServiceImpl implements UserService {
         log.debug("开始根据ID查询用户信息, User ID: {}", userId);
         Assert.hasText(userId, "用户ID不能为空");
 
-        // 【修正】使用 Example 查询是正确的，因为主键是VARCHAR类型
+        // 使用 Example 查询是正确的，因为主键是VARCHAR类型
         UserExample example = new UserExample();
         example.createCriteria().andIdEqualTo(userId);
         return userMapper.selectByExample(example).stream().findFirst().orElse(null);

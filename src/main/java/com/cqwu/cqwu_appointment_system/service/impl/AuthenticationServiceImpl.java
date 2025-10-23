@@ -93,7 +93,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             userId = claims.get("userId", String.class);
             log.info("从 Refresh Token 中解析出 UserId: '{}'。", userId);
 
-            // 【核心安全校验】校验 Redis 中存储的 Token 是否与传入的一致
+            // 校验 Redis 中存储的 Token 是否与传入的一致
             String redisKey = Constants.REFRESH_TOKEN_KEY_PREFIX + userId;
             String storedToken = redisCache.getCacheObject(redisKey);
             if (storedToken == null || !storedToken.equals(refreshToken)) {
