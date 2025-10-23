@@ -79,7 +79,7 @@ public class VenueStatusUpdater {
             int updatedCount = venueService.updateRealtimeStatusBatch(venuesToUpdate);
             log.info("成功更新了 {} 个场所的实时状态。", updatedCount);
             notificationService.sendNotification(
-                    "all_users",
+                    Constants.SseBroadcast.ALL_USERS,
                     Constants.SseEvent.VENUE_UPDATED,
                     "list_updated");
         } else {

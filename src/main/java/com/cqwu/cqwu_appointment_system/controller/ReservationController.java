@@ -79,9 +79,12 @@ public class ReservationController {
                 venue
             );
 
-        // 向管理员发送通知
-        notificationService.sendNotification(
-            "admin", // 假设有一个统一的管理员频道
+        // 仅推送给管理员与超管
+        notificationService.sendToRoles(
+            java.util.Arrays.asList(
+                Constants.UserRoleType.ROLE_ADMIN,
+                Constants.UserRoleType.ROLE_ROOT
+            ),
             Constants.SseEvent.NEW_RESERVATION,
             "有新的预约申请，请及时处理"
         );
@@ -196,8 +199,12 @@ public class ReservationController {
         // 如果是用户自己取消，通知管理员
         // 如果是管理员取消，通知用户
         if (currentUser.getId().equals(cancelledReservation.getCreatorUserId())) {
-            notificationService.sendNotification(
-                "admin",
+            // 用户取消 -> 通知管理员
+            notificationService.sendToRoles(
+                java.util.Arrays.asList(
+                    Constants.UserRoleType.ROLE_ADMIN,
+                    Constants.UserRoleType.ROLE_ROOT
+                ),
                 Constants.SseEvent.RESERVATION_CANCELLED_BY_USER,
                 String.format("用户 '%s' 取消了预约 '%s'", currentUser.getName(), cancelledReservation.getTitle())
             );

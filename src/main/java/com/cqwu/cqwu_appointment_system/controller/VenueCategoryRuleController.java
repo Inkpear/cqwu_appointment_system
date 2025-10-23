@@ -28,6 +28,7 @@ public class VenueCategoryRuleController {
 
     /**
      * 获取所有场所分类准入规则
+     * 
      * @return
      */
     @GetMapping
@@ -51,10 +52,9 @@ public class VenueCategoryRuleController {
         venueCategoryRuleService.addRule(rule);
 
         notificationService.sendNotification(
-            "all_users",
-            Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
-            "list_updated"
-        );
+                Constants.SseBroadcast.ALL_USERS,
+                Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
+                "list_updated");
 
         // 返回 201 Created，并使用 created 方法确保响应体内 code 也为 201
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -80,10 +80,9 @@ public class VenueCategoryRuleController {
         }
 
         notificationService.sendNotification(
-            "all_users",
-            Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
-            "list_updated"
-        );
+                Constants.SseBroadcast.ALL_USERS,
+                Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
+                "list_updated");
 
         return ResponseEntity.ok(AjaxResult.success(Constants.DELETE_SUCCESS));
     }

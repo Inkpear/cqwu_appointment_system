@@ -23,5 +23,55 @@
     "name": "logging.frontend.max-per-user",
     "type": "java.lang.String",
     "description": "每个用户允许存储在数据库中的最大前端日志条数"
+  },
+  {
+    "name": "logging.sse.life",
+    "type": "java.time.Duration",
+    "description": "SSE 连接的会话超时时间（SseEmitter 超时时间）"
+  },
+  {
+    "name": "logging.sse.heartbeat.base",
+    "type": "java.time.Duration",
+    "description": "SSE 心跳的基础间隔（动态调度下限）"
+  },
+  {
+    "name": "logging.sse.heartbeat.multiplier",
+    "type": "java.lang.Double",
+    "description": "SSE 心跳倍率 P，用于 computedDelay = max(base, lastCost * P)"
+  },
+  {
+    "name": "logging.sse.heartbeat.max",
+    "type": "java.time.Duration",
+    "description": "SSE 心跳最大间隔上限，避免客户端/代理误判掉线"
+  },
+  {
+    "name": "logging.sse.broadcast.jitter.enabled",
+    "type": "java.lang.Boolean",
+    "description": "是否在广播发送时为不同用户添加随机抖动，平滑客户端并发拉取"
+  },
+  {
+    "name": "logging.sse.broadcast.jitter.max",
+    "type": "java.time.Duration",
+    "description": "广播抖动的最大延迟时间（Duration）"
+  },
+  {
+    "name": "logging.sse.broadcast.batch.enabled",
+    "type": "java.lang.Boolean",
+    "description": "是否启用按批次分发广播事件（批间隔 + 批内抖动）"
+  },
+  {
+    "name": "logging.sse.broadcast.batch.size",
+    "type": "java.lang.Integer",
+    "description": "广播每批推送的连接数量"
+  },
+  {
+    "name": "logging.sse.broadcast.batch.gap",
+    "type": "java.time.Duration",
+    "description": "广播批与批之间的间隔"
+  },
+  {
+    "name": "logging.sse.broadcast.batch.within-jitter",
+    "type": "java.time.Duration",
+    "description": "广播批内的轻微抖动上限"
   }
 ]}

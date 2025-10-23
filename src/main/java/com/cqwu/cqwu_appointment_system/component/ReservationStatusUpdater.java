@@ -139,7 +139,7 @@ public class ReservationStatusUpdater {
         if (inProgressCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
             notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                 "有预约状态已自动更新为进行中"
             );
@@ -158,7 +158,7 @@ public class ReservationStatusUpdater {
         if (completedCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 COMPLETED", completedCount);
             notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                 "有预约状态已自动更新为已完成"
             );
@@ -182,7 +182,7 @@ public class ReservationStatusUpdater {
         if (count > 0) {
             log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", count);
             notificationService.sendNotification(
-                "all_users",
+                Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                 "有待审批的预约已自动过期"
             );
