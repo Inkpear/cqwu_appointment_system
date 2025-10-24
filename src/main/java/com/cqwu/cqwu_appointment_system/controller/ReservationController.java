@@ -88,7 +88,7 @@ public class ReservationController {
         notificationService.sendToRoles(
                 sendTarget,
                 Constants.SseEvent.NEW_RESERVATION,
-                "有新的预约申请，请及时处理");
+                request);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 AjaxResult.created("预约申请已提交，等待审批", createdReservation));
