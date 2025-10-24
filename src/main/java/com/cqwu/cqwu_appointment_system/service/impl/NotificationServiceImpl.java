@@ -36,7 +36,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @Slf4j
 public class NotificationServiceImpl implements NotificationService {
-    // 使用构造器注入的实例字段而不是 static，避免 @Value 对静态字段不生效
     private final long sseSessionTimeoutMs; // default 30 minutes
     private final long heartbeatBaseMs; // base/min interval for heartbeat
     private final double heartbeatMultiplier; // P 倍率
@@ -67,22 +66,36 @@ public class NotificationServiceImpl implements NotificationService {
             @Value("${logging.sse.broadcast.batch.gap:300ms}") Duration broadcastBatchGap,
             @Value("${logging.sse.broadcast.batch.within-jitter:200ms}") Duration broadcastBatchWithinJitter,
             TaskScheduler taskScheduler) {
+
         this.sseSessionTimeoutMs = sseSessionTimeout.toMillis();
+
         this.heartbeatBaseMs = Math.max(0L, heartbeatBase.toMillis());
+
         this.heartbeatMultiplier = heartbeatMultiplier > 0 ? heartbeatMultiplier : 1.0d;
+
         long maxMs = heartbeatMax != null ? heartbeatMax.toMillis() : 0L;
-        this.heartbeatMaxMs = maxMs > 0 ? Math.max(maxMs, this.heartbeatBaseMs) : 0L; // 保证 max >= base
+
+        this.heartbeatMaxMs = maxMs > 0 ? Math.max(maxMs, this.heartbeatBaseMs) : 0L;
+
         this.broadcastJitterEnabled = broadcastJitterEnabled;
+
         long jitterMax = broadcastJitterMax != null ? broadcastJitterMax.toMillis() : 0L;
+
         this.broadcastJitterMaxMs = Math.max(0L, jitterMax);
+
         this.broadcastBatchEnabled = broadcastBatchEnabled;
+
         this.broadcastBatchSize = Math.max(1, broadcastBatchSize);
+
         this.broadcastBatchGapMs = Math.max(0L, (broadcastBatchGap != null ? broadcastBatchGap.toMillis() : 0L));
+
         this.broadcastBatchWithinJitterMs = Math.max(0L,
                 (broadcastBatchWithinJitter != null ? broadcastBatchWithinJitter.toMillis() : 0L));
+
         this.taskScheduler = taskScheduler;
 
         int coreCount = Runtime.getRuntime().availableProcessors();
+
         this.shutdownExecutor = Executors.newFixedThreadPool(coreCount, r -> {
             Thread t = new Thread(r);
             t.setName("sse-shutdown-worker-" + t.threadId());
@@ -104,7 +117,9 @@ public class NotificationServiceImpl implements NotificationService {
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public SseEmitter createEmitter(String userId, String role) {
         SseEmitter emitter = new SseEmitter(sseSessionTimeoutMs);
@@ -130,7 +145,9 @@ public class NotificationServiceImpl implements NotificationService {
         return emitter;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void sendNotification(String userId, String eventName, Object data) {
         if (Constants.SseBroadcast.ALL_USERS.equals(userId)) {
@@ -199,7 +216,9 @@ public class NotificationServiceImpl implements NotificationService {
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void sendToRole(String role, String eventName, Object data) {
         if (role == null)
@@ -216,7 +235,9 @@ public class NotificationServiceImpl implements NotificationService {
         });
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void sendToRoles(List<String> roles, String eventName, Object data) {
         if (roles == null)
@@ -350,7 +371,6 @@ public class NotificationServiceImpl implements NotificationService {
 
         emitters.clear();
 
-        // 4. 关闭专用的线程池
         shutdownExecutor.shutdown();
         try {
             if (!shutdownExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
