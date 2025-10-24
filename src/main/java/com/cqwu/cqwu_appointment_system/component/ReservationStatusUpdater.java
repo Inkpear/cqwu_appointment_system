@@ -138,8 +138,7 @@ public class ReservationStatusUpdater {
         int inProgressCount = reservationMapper.updateByExampleSelective(inProgressUpdate, toInProgressExample);
         if (inProgressCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
-            notificationService.sendNotification(
-                    Constants.UserRoleType.ROLE_MONITOR,
+            notificationService.sendNotification(Constants.SseBroadcast.ALL_USERS,
                     Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                     "有预约状态已自动更新为进行中");
         }
@@ -155,8 +154,7 @@ public class ReservationStatusUpdater {
         int completedCount = reservationMapper.updateByExampleSelective(completedUpdate, toCompletedExample);
         if (completedCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 COMPLETED", completedCount);
-            notificationService.sendNotification(
-                    Constants.UserRoleType.ROLE_MONITOR,
+            notificationService.sendNotification(Constants.SseBroadcast.ALL_USERS,
                     Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                     "有预约状态已自动更新为已完成");
         }
@@ -178,8 +176,7 @@ public class ReservationStatusUpdater {
         int count = reservationMapper.updateByExampleSelective(update, example);
         if (count > 0) {
             log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", count);
-            notificationService.sendNotification(
-                    Constants.UserRoleType.ROLE_MONITOR,
+            notificationService.sendNotification(Constants.SseBroadcast.ALL_USERS,
                     Constants.SseEvent.RESERVATION_AUTO_UPDATED,
                     "有待审批的预约已自动过期");
         }
