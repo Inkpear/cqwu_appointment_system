@@ -21,9 +21,9 @@ public class SystemInfoBroadcaster {
     private NotificationService notificationService;
 
     /**
-     * 每隔 3 秒获取一次系统信息，并向所有监控角色广播。
+     * 每隔 5 秒获取一次系统信息，并向所有监控角色广播。
      */
-    @Scheduled(fixedRate = 3000)
+    @Scheduled(fixedRate = 5000)
     public void broadcastSystemInfo() {
         try {
             SystemInfoDTO systemInfo = systemMonitorService.getSystemInfo();

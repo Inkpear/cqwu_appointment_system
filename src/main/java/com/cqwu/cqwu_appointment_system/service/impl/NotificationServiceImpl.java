@@ -13,9 +13,11 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -31,20 +33,22 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @Slf4j
 public class NotificationServiceImpl implements NotificationService {
-    // 使用构造器注入的实例字段而不是 static，避免 @Value 对静态字段不生效
+
     private final long sseSessionTimeoutMs; // default 30 minutes
-    private final long heartbeatBaseMs;     // base/min interval for heartbeat
+    private final long heartbeatBaseMs; // base/min interval for heartbeat
     private final double heartbeatMultiplier; // P 倍率
-    private final long heartbeatMaxMs;       // 上限间隔，避免客户端误判掉线
+    private final long heartbeatMaxMs; // 上限间隔，避免客户端误判掉线
     private final TaskScheduler taskScheduler;
     private final AtomicLong lastHeartbeatCostMs = new AtomicLong(0L);
     private volatile ScheduledFuture<?> heartbeatFuture;
     private final boolean broadcastJitterEnabled; // 广播时对不同用户添加抖动
-    private final long broadcastJitterMaxMs;       // 广播抖动上限
-    private final boolean broadcastBatchEnabled;   // 广播分批开关
-    private final int broadcastBatchSize;          // 每批大小
-    private final long broadcastBatchGapMs;        // 批间隔
+    private final long broadcastJitterMaxMs; // 广播抖动上限
+    private final boolean broadcastBatchEnabled; // 广播分批开关
+    private final int broadcastBatchSize; // 每批大小
+    private final long broadcastBatchGapMs; // 批间隔
     private final long broadcastBatchWithinJitterMs; // 批内抖动上限
+
+    private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     public NotificationServiceImpl(
             @Value("${logging.sse.life:PT30M}") Duration sseSessionTimeout,
@@ -69,7 +73,8 @@ public class NotificationServiceImpl implements NotificationService {
         this.broadcastBatchEnabled = broadcastBatchEnabled;
         this.broadcastBatchSize = Math.max(1, broadcastBatchSize);
         this.broadcastBatchGapMs = Math.max(0L, (broadcastBatchGap != null ? broadcastBatchGap.toMillis() : 0L));
-        this.broadcastBatchWithinJitterMs = Math.max(0L, (broadcastBatchWithinJitter != null ? broadcastBatchWithinJitter.toMillis() : 0L));
+        this.broadcastBatchWithinJitterMs = Math.max(0L,
+                (broadcastBatchWithinJitter != null ? broadcastBatchWithinJitter.toMillis() : 0L));
         this.taskScheduler = taskScheduler;
     }
 
@@ -90,7 +95,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public SseEmitter createEmitter(String userId, String role) {
         SseEmitter emitter = new SseEmitter(sseSessionTimeoutMs);
-        // 多连接并存：为该用户维护一个连接列表
+
         emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(new EmitterEntry(emitter, role));
 
         emitter.onCompletion(() -> {
@@ -108,7 +113,6 @@ public class NotificationServiceImpl implements NotificationService {
             removeEmitter(userId, emitter);
         });
 
-        // 发送一个初始连接成功的事件
         sendNotification(userId, Constants.SseEvent.CONNECTION_ESTABLISHED, "连接成功");
 
         return emitter;
@@ -119,14 +123,15 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendNotification(String userId, String eventName, Object data) {
         if (Constants.SseBroadcast.ALL_USERS.equals(userId)) {
             log.info("正在向所有在线用户广播事件 '{}'", eventName);
-            // 快照并扁平化所有目标连接
             List<Target> targets = new ArrayList<>();
             emitters.forEach((id, list) -> {
-                if (list == null || list.isEmpty()) return;
+                if (list == null || list.isEmpty())
+                    return;
                 list.forEach(entry -> targets.add(new Target(id, entry)));
             });
 
-            if (targets.isEmpty()) return;
+            if (targets.isEmpty())
+                return;
 
             final long now = System.currentTimeMillis();
             if (broadcastBatchEnabled) {
@@ -140,18 +145,26 @@ public class NotificationServiceImpl implements NotificationService {
                             : 0L;
                     long fireAt = now + baseDelay + jitter;
                     Target t = targets.get(i);
-                    taskScheduler.schedule(() -> sendToEmitter(t.entry.emitter, t.userId, eventName, data),
-                            Instant.ofEpochMilli(fireAt));
+                    try {
+                        taskScheduler.schedule(() -> sendToEmitter(t.entry.emitter, t.userId, eventName, data),
+                                Instant.ofEpochMilli(fireAt));
+                    } catch (TaskRejectedException e) {
+                        log.warn("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
+                    }
                 }
             } else {
                 // 仅抖动：每个目标在 [0, broadcastJitterMaxMs] 随机延迟内发送
                 targets.forEach(t -> {
-                    if (broadcastJitterEnabled && broadcastJitterMaxMs > 0) {
-                        long delay = ThreadLocalRandom.current().nextLong(0L, broadcastJitterMaxMs + 1L);
-                        taskScheduler.schedule(() -> sendToEmitter(t.entry.emitter, t.userId, eventName, data),
-                                Instant.ofEpochMilli(now + delay));
-                    } else {
-                        sendToEmitter(t.entry.emitter, t.userId, eventName, data);
+                    try {
+                        if (broadcastJitterEnabled && broadcastJitterMaxMs > 0) {
+                            long delay = ThreadLocalRandom.current().nextLong(0L, broadcastJitterMaxMs + 1L);
+                            taskScheduler.schedule(() -> sendToEmitter(t.entry.emitter, t.userId, eventName, data),
+                                    Instant.ofEpochMilli(now + delay));
+                        } else {
+                            sendToEmitter(t.entry.emitter, t.userId, eventName, data);
+                        }
+                    } catch (TaskRejectedException e) {
+                        log.warn("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
                     }
                 });
             }
@@ -185,7 +198,8 @@ public class NotificationServiceImpl implements NotificationService {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                if (role.equalsIgnoreCase(entry.role) || entry.role.equalsIgnoreCase(Constants.UserRoleType.ROLE_MONITOR)) {
+                if (role.equalsIgnoreCase(entry.role)
+                        || entry.role.equalsIgnoreCase(Constants.UserRoleType.ROLE_MONITOR)) {
                     sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });
@@ -197,13 +211,12 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendToRoles(List<String> roles, String eventName, Object data) {
         if (roles == null)
             return;
-        roles.add(new String(Constants.UserRoleType.ROLE_MONITOR));
 
         emitters.forEach((userId, list) -> {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                if (roles.contains(entry.role)) {
+                if (roles.contains(entry.role) || entry.role.equals(Constants.UserRoleType.ROLE_MONITOR)) {
                     sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });
@@ -212,7 +225,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     /**
      * 实际向单个 Emitter 发送事件的私有方法。
-     * 
+     *
      * @param emitter   SseEmitter 实例
      * @param userId    接收方的用户ID
      * @param eventName 事件名称
@@ -225,9 +238,9 @@ public class NotificationServiceImpl implements NotificationService {
                     .data(data)
                     .id(String.valueOf(System.currentTimeMillis()));
             emitter.send(event);
-            log.info("已向用户 '{}' 发送事件 '{}'", userId, eventName);
-        } catch (IOException e) {
-            log.error("向用户 '{}' 发送事件 '{}' 失败", userId, eventName, e);
+            log.debug("已向用户 '{}' 发送事件 '{}'", userId, eventName);
+        } catch (IOException | IllegalStateException e) {
+            log.error("向用户 '{}' 发送事件 '{}' 失败: {}", userId, eventName, e.getMessage());
             emitter.complete();
             removeEmitter(userId, emitter);
         }
@@ -250,27 +263,28 @@ public class NotificationServiceImpl implements NotificationService {
     @PostConstruct
     public void startAdaptiveHeartbeat() {
         heartbeatFuture = taskScheduler.schedule(this::doHeartbeatOnce, triggerContext -> {
+            if (isShuttingDown.get()) {
+                return null;
+            }
             Instant lastCompletion = triggerContext.lastCompletion();
             long cost = lastHeartbeatCostMs.get();
             long computedDelay = Math.max(heartbeatBaseMs, (long) Math.ceil(cost * heartbeatMultiplier));
             if (heartbeatMaxMs > 0) {
                 computedDelay = Math.min(heartbeatMaxMs, computedDelay);
             }
-            long nextTime = (lastCompletion != null ? lastCompletion.toEpochMilli() : System.currentTimeMillis()) + computedDelay;
+            long nextTime = (lastCompletion != null ? lastCompletion.toEpochMilli() : System.currentTimeMillis())
+                    + computedDelay;
             return Instant.ofEpochMilli(nextTime);
         });
-        log.info("SSE 心跳调度已启动：base={}ms, P={}, max={}ms", heartbeatBaseMs, heartbeatMultiplier, heartbeatMaxMs);
-    }
-
-    @PreDestroy
-    public void stopAdaptiveHeartbeat() {
-        ScheduledFuture<?> future = heartbeatFuture;
-        if (future != null) {
-            future.cancel(true);
-        }
+        log.debug("SSE 心跳调度已启动：base={}ms, P={}, max={}ms", heartbeatBaseMs, heartbeatMultiplier, heartbeatMaxMs);
     }
 
     private void doHeartbeatOnce() {
+        if (isShuttingDown.get()) {
+            log.info("SSE 服务正在关闭，跳过此次心跳任务。");
+            return;
+        }
+
         long startNs = System.nanoTime();
         try {
             if (!emitters.isEmpty()) {
@@ -279,9 +293,41 @@ public class NotificationServiceImpl implements NotificationService {
         } finally {
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
             lastHeartbeatCostMs.set(costMs);
-            if (costMs > 0) {
+            if (costMs > 0 && !isShuttingDown.get()) {
                 log.debug("SSE 心跳耗时：{} ms（用于计算下一次调度间隔）", costMs);
             }
         }
+    }
+
+    /**
+     * 使用 @PreDestroy 注解，确保在应用关闭时被调用，统一处理所有关闭逻辑
+     */
+    @PreDestroy
+    public void shutdown() {
+        log.info("【SSE 服务】正在关闭...");
+
+        isShuttingDown.set(true);
+
+        if (heartbeatFuture != null) {
+            heartbeatFuture.cancel(false);
+            log.info("【SSE 服务】自适应心跳任务已停止。");
+        }
+
+        log.info("【SSE 服务】正在关闭所有活动的 SSE 连接...");
+
+        emitters.forEach((userId, list) -> {
+            if (list != null) {
+                list.forEach(entry -> {
+                    try {
+                        entry.emitter.complete();
+                    } catch (Exception e) {
+                        log.warn("关闭用户 '{}' 的 SSE 连接时出错: {}", userId, e.getMessage());
+                    }
+                });
+            }
+        });
+        emitters.clear();
+
+        log.info("【SSE 服务】所有 SSE 连接已关闭。服务已停止。");
     }
 }

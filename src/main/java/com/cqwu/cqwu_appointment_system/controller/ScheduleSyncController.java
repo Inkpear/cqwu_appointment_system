@@ -105,7 +105,6 @@ public class ScheduleSyncController {
             tb.setStartDatetime(this.startDatetime);
             tb.setEndDatetime(this.endDatetime);
             tb.setTitle(this.title);
-            // 关键：由后端强制设定类型，而不是信任客户端
             tb.setBlockType(Constants.TimeBlockType.COURSE);
             return tb;
         }

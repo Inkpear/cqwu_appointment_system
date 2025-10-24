@@ -59,13 +59,12 @@ public class AuthenticationController {
     ) {
         log.info("开始处理用户 '{}' 的登录请求...", loginRequest.getUserId());
 
-        // 模拟CAS Ticket验证失败的情况
         if (loginRequest == null || !loginRequest.isAuthenticated()) {
             log.warn(
                 "CAS 认证失败或请求参数不正确, UserId: {}",
                 loginRequest.getUserId()
             );
-            // 直接返回错误，不抛出异常，因为这不是服务器内部错误
+
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 AjaxResult.error(
                     HttpStatus.BAD_REQUEST,
@@ -74,7 +73,6 @@ public class AuthenticationController {
             );
         }
 
-        // Service层在认证失败时会抛出AuthenticationException，由GlobalExceptionHandler捕获
         Map<String, String> tokens = authenticationService.login(
             loginRequest.getUserId()
         );
@@ -94,7 +92,7 @@ public class AuthenticationController {
         @RequestBody RefreshTokenRequest request
     ) {
         log.info("开始处理 Access Token 刷新请求...");
-        // Service层在刷新失败时会抛出RuntimeException，由GlobalExceptionHandler捕获
+
         Map<String, String> newTokens = authenticationService.refreshToken(
             request.getRefreshToken()
         );

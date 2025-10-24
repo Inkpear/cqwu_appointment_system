@@ -54,6 +54,9 @@ public class ReservationServiceImpl implements ReservationService {
     @Autowired
     private VenueMapper venueMapper;
 
+    @Autowired
+    NotificationServiceImpl notificationService;
+
     /**
      * 创建一个新的预约申请。
      * 此方法遵循“竞争”原则，只在数据库中创建一条 PENDING 记录，
@@ -335,6 +338,11 @@ public class ReservationServiceImpl implements ReservationService {
         reservationMapper.updateByPrimaryKeySelective(update);
 
         log.info("【系统】已自动批准预约 ID: {}", reservation.getId());
+
+        notificationService.sendToRole(
+                Constants.UserRoleType.ROLE_MONITOR,
+                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                "有预约状态已自动更新为进行中");
         return reservationMapper.selectByPrimaryKey(reservation.getId());
     }
 
@@ -355,6 +363,12 @@ public class ReservationServiceImpl implements ReservationService {
         reservationMapper.updateByPrimaryKeySelective(update);
 
         log.warn("【系统】已自动拒绝预约 ID: {}", reservation.getId());
+
+        notificationService.sendToRole(
+                Constants.UserRoleType.ROLE_MONITOR,
+                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                "有预约状态已自动更新为已拒绝");
+
         return reservationMapper.selectByPrimaryKey(reservation.getId());
     }
 

@@ -109,7 +109,6 @@ public class VenueController {
         BeanUtils.copyProperties(updateRequest, venueToUpdate);
         venueToUpdate.setId(id);
 
-        // Service层现在会在找不到时抛出异常
         int result = venueService.updateVenue(venueToUpdate);
         if (result == 0) {
             throw new IllegalArgumentException(Constants.UPDATE_FAIL_NOT_FOUND);
@@ -143,7 +142,7 @@ public class VenueController {
         if (result == 0) {
             throw new IllegalArgumentException(Constants.DELETE_FAIL_NOT_FOUND);
         }
-        // 广播删除事件，前端可据此刷新列表/缓存
+
         notificationService.sendNotification(
                 Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_DELETED,

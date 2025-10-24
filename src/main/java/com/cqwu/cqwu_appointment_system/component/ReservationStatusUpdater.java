@@ -118,7 +118,7 @@ public class ReservationStatusUpdater {
             reservationService.rejectBySystem(reservation, "时间段已被占用，系统自动拒绝");
         }
     }
- 
+
     /**
      * 批量处理活跃预约的状态推进。
      * (CONFIRMED -> IN_PROGRESS, IN_PROGRESS -> COMPLETED)
@@ -139,13 +139,11 @@ public class ReservationStatusUpdater {
         if (inProgressCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 IN_PROGRESS", inProgressCount);
             notificationService.sendNotification(
-                Constants.SseBroadcast.ALL_USERS,
-                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                "有预约状态已自动更新为进行中"
-            );
+                    Constants.UserRoleType.ROLE_MONITOR,
+                    Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                    "有预约状态已自动更新为进行中");
         }
 
-        // 将已结束的 CONFIRMED 或 IN_PROGRESS 预约更新为 COMPLETED
         ReservationExample toCompletedExample = new ReservationExample();
         toCompletedExample.createCriteria()
                 .andStatusIn(
@@ -158,10 +156,9 @@ public class ReservationStatusUpdater {
         if (completedCount > 0) {
             log.info("【定时任务】{} 个预约已变更为 COMPLETED", completedCount);
             notificationService.sendNotification(
-                Constants.SseBroadcast.ALL_USERS,
-                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                "有预约状态已自动更新为已完成"
-            );
+                    Constants.UserRoleType.ROLE_MONITOR,
+                    Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                    "有预约状态已自动更新为已完成");
         }
     }
 
@@ -182,10 +179,9 @@ public class ReservationStatusUpdater {
         if (count > 0) {
             log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", count);
             notificationService.sendNotification(
-                Constants.SseBroadcast.ALL_USERS,
-                Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                "有待审批的预约已自动过期"
-            );
+                    Constants.UserRoleType.ROLE_MONITOR,
+                    Constants.SseEvent.RESERVATION_AUTO_UPDATED,
+                    "有待审批的预约已自动过期");
         }
     }
 }
