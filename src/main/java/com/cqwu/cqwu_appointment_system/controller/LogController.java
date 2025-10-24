@@ -3,6 +3,7 @@ package com.cqwu.cqwu_appointment_system.controller;
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
+import com.cqwu.cqwu_appointment_system.domain.dto.FrontendLogBatchRequestDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.FrontendLogRequestDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.query.FrontendLogQuery;
@@ -79,24 +80,23 @@ public class LogController {
     }
 
     /**
-     * 批量接收并存储前端上报的日志。
-     * 会严格遵守“单用户最大存储上限”，按需淘汰最旧日志或裁剪本次批量。
-     * 
-     * @param logRequests 包含多个日志记录的请求体列表。
-     * @param loginUser   当前登录的用户信息，由 Spring Security 注入。
-     * @param userAgent   请求头中的 User-Agent。
-     * @return 成功时，返回操作成功的响应；失败时，由全局异常处理器统一响应。
+     *
+     * @param batchRequest
+     * @param loginUser
+     * @param userAgent
+     * @return
      */
     @PostMapping("/frontend/batch")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> reportFrontendLogs(
-            @RequestBody @Valid List<FrontendLogRequestDTO> logRequests,
+            @RequestBody @Valid FrontendLogBatchRequestDTO batchRequest,
             @AuthenticationPrincipal LoginUser loginUser,
             @RequestHeader("User-Agent") String userAgent) {
 
         String userId = loginUser.getUser().getId();
-        logService.saveFrontendLogs(logRequests, userId, userAgent);
+        List<FrontendLogRequestDTO> logRequests = batchRequest.getLogs();
 
+        logService.saveFrontendLogs(logRequests, userId, userAgent);
         return ResponseEntity.ok(AjaxResult.success("前端日志批量上报成功。"));
     }
 
