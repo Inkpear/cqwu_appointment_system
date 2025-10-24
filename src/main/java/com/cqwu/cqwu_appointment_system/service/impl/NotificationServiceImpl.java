@@ -2,29 +2,32 @@ package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
-import java.time.Duration;
-import java.time.Instant;
-import java.io.IOException;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -33,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @Slf4j
 public class NotificationServiceImpl implements NotificationService {
-
+    // 使用构造器注入的实例字段而不是 static，避免 @Value 对静态字段不生效
     private final long sseSessionTimeoutMs; // default 30 minutes
     private final long heartbeatBaseMs; // base/min interval for heartbeat
     private final double heartbeatMultiplier; // P 倍率
@@ -49,6 +52,8 @@ public class NotificationServiceImpl implements NotificationService {
     private final long broadcastBatchWithinJitterMs; // 批内抖动上限
 
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+
+    private final ExecutorService shutdownExecutor;
 
     public NotificationServiceImpl(
             @Value("${logging.sse.life:PT30M}") Duration sseSessionTimeout,
@@ -76,6 +81,14 @@ public class NotificationServiceImpl implements NotificationService {
         this.broadcastBatchWithinJitterMs = Math.max(0L,
                 (broadcastBatchWithinJitter != null ? broadcastBatchWithinJitter.toMillis() : 0L));
         this.taskScheduler = taskScheduler;
+
+        int coreCount = Runtime.getRuntime().availableProcessors();
+        this.shutdownExecutor = Executors.newFixedThreadPool(coreCount, r -> {
+            Thread t = new Thread(r);
+            t.setName("sse-shutdown-worker-" + t.threadId());
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     // 支持同一用户多端/多标签页并发订阅，并存储用户角色以支持按角色推送
@@ -95,7 +108,6 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public SseEmitter createEmitter(String userId, String role) {
         SseEmitter emitter = new SseEmitter(sseSessionTimeoutMs);
-
         emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(new EmitterEntry(emitter, role));
 
         emitter.onCompletion(() -> {
@@ -135,7 +147,6 @@ public class NotificationServiceImpl implements NotificationService {
 
             final long now = System.currentTimeMillis();
             if (broadcastBatchEnabled) {
-                // 分批 + 批内轻微抖动，先随机打散以避免同一批次长期固定同一批用户
                 Collections.shuffle(targets);
                 for (int i = 0; i < targets.size(); i++) {
                     int batchIndex = i / broadcastBatchSize;
@@ -153,7 +164,6 @@ public class NotificationServiceImpl implements NotificationService {
                     }
                 }
             } else {
-                // 仅抖动：每个目标在 [0, broadcastJitterMaxMs] 随机延迟内发送
                 targets.forEach(t -> {
                     try {
                         if (broadcastJitterEnabled && broadcastJitterMaxMs > 0) {
@@ -257,8 +267,8 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     /**
-     * 自适应心跳：下一次间隔 = max(base, 上次执行耗时 * P)。
-     * 使用 TaskScheduler + Trigger 来动态计算调度间隔。
+     * @description 自适应心跳：下一次间隔 = max(base, 上次执行耗时 * P)。
+     *              使用 TaskScheduler + Trigger 来动态计算调度间隔。
      */
     @PostConstruct
     public void startAdaptiveHeartbeat() {
@@ -313,21 +323,46 @@ public class NotificationServiceImpl implements NotificationService {
             log.info("【SSE 服务】自适应心跳任务已停止。");
         }
 
-        log.info("【SSE 服务】正在关闭所有活动的 SSE 连接...");
+        log.info("【SSE 服务】正在并行关闭所有活动的 SSE 连接...");
 
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         emitters.forEach((userId, list) -> {
             if (list != null) {
                 list.forEach(entry -> {
-                    try {
-                        entry.emitter.complete();
-                    } catch (Exception e) {
-                        log.warn("关闭用户 '{}' 的 SSE 连接时出错: {}", userId, e.getMessage());
-                    }
+                    CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                        try {
+                            entry.emitter.complete();
+                        } catch (Exception e) {
+                            log.warn("关闭用户 '{}' 的 SSE 连接时出错: {}", userId, e.getMessage());
+                        }
+                    }, shutdownExecutor);
+                    futures.add(future);
                 });
             }
         });
+
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+            log.info("【SSE 服务】所有 SSE 连接关闭任务已完成。");
+        } catch (Exception e) {
+            log.error("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。", e);
+        }
+
         emitters.clear();
 
-        log.info("【SSE 服务】所有 SSE 连接已关闭。服务已停止。");
+        // 4. 关闭专用的线程池
+        shutdownExecutor.shutdown();
+        try {
+            if (!shutdownExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                log.warn("【SSE 服务】关闭执行器超时，强制关闭。");
+                shutdownExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            log.error("【SSE 服务】关闭执行器时被中断。");
+            shutdownExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        log.info("【SSE 服务】服务已完全停止。");
     }
 }
