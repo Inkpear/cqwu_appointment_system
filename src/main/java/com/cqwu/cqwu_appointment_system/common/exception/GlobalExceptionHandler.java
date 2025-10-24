@@ -45,6 +45,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理对象状态不合法导致的异常 (IllegalStateException)
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public AjaxResult handleIllegalStateException(IllegalStateException e) {
+        log.warn("试图对非法状态的对象进行操作: {}", e.getMessage());
+        return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), e.getMessage());
+    }
+    
+    /**
      * 处理请求体丢失或格式错误的异常
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
