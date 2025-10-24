@@ -79,15 +79,15 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
                 log.debug("成功为用户 '{}' 验证 JWT Token，安全上下文已设置。", userId);
             }
         } catch (ExpiredJwtException e) {
-            log.warn("JWT Token 已过期: {}", e.getMessage());
+            log.debug("JWT Token 已过期: {}", e.getMessage());
         } catch (SignatureException e) {
-            log.warn("无效的 JWT 签名: {}", e.getMessage());
+            log.debug("无效的 JWT 签名: {}", e.getMessage());
         } catch (MalformedJwtException e) {
-            log.warn("无效的 JWT Token: {}", e.getMessage());
+            log.debug("无效的 JWT Token: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            log.warn("不支持的 JWT Token: {}", e.getMessage());
+            log.debug("不支持的 JWT Token: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            log.warn("JWT Claims 字符串为空: {}", e.getMessage());
+            log.debug("JWT Claims 字符串为空: {}", e.getMessage());
         }
 
         // 无论Token是否有效，都继续执行过滤器链

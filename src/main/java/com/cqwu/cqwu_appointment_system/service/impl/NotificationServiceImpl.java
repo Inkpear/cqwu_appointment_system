@@ -135,7 +135,7 @@ public class NotificationServiceImpl implements NotificationService {
             removeEmitter(userId, emitter);
         });
         emitter.onError(e -> {
-            log.error("用户 '{}' 的SSE连接发生错误", userId, e);
+            log.error("用户 '{}' 的SSE连接发生错误", userId, e.getMessage());
             emitter.complete();
             removeEmitter(userId, emitter);
         });
@@ -354,7 +354,7 @@ public class NotificationServiceImpl implements NotificationService {
                         try {
                             entry.emitter.complete();
                         } catch (Exception e) {
-                            log.warn("关闭用户 '{}' 的 SSE 连接时出错: {}", userId, e.getMessage());
+                            log.warn("关闭用户 '{}' 的 SSE 连接时出错", userId);
                         }
                     }, shutdownExecutor);
                     futures.add(future);
@@ -366,7 +366,7 @@ public class NotificationServiceImpl implements NotificationService {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
             log.info("【SSE 服务】所有 SSE 连接关闭任务已完成。");
         } catch (Exception e) {
-            log.error("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。", e);
+            log.error("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。");
         }
 
         emitters.clear();
