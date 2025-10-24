@@ -60,7 +60,7 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
         VenueExample example = new VenueExample();
         example.createCriteria().andCategoryIdEqualTo(id);
         if (venueMapper.countByExample(example) > 0) {
-            throw new IllegalStateException("无法删除，仍有场所正在使用此分类");
+            throw new IllegalArgumentException("无法删除，仍有场所正在使用此分类");
         }
 
         // 级联删除与此分类关联的所有准入规则
