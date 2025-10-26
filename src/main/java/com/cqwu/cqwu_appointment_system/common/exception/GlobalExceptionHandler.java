@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 全局异常处理器
@@ -192,10 +194,23 @@ public class GlobalExceptionHandler {
      * 通常发生在文件读写等操作失败时。
      */
     @ExceptionHandler(IOException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public AjaxResult handleIOException(IOException e) {
-        log.error("服务器发生 I/O 错误: ", e);
-        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器内部发生I/O 错误");
+    public ResponseEntity<?> handleIOException(IOException e, HttpServletRequest request, HttpServletResponse response) {
+        // 典型场景：SSE 客户端主动断开连接，容器抛出 IOException（如 Broken pipe）。
+        // 当响应 Content-Type 为 text/event-stream 或 Accept 包含该类型时，不要再尝试写 JSON。
+        String accept = request.getHeader("Accept");
+        String contentType = response.getContentType();
+        boolean isSse = (accept != null && accept.contains("text/event-stream"))
+                || (contentType != null && contentType.contains("text/event-stream"));
+
+        if (isSse) {
+            // 对于 SSE：返回 204 No Content，静默结束，避免 HttpMessageNotWritableException。
+            log.warn("SSE 连接 I/O 中断，静默结束: {}", e.toString());
+            return ResponseEntity.noContent().build();
+        }
+
+        log.error("服务器发生 I/O 错误", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器内部发生 I/O 错误"));
     }
 
     /**

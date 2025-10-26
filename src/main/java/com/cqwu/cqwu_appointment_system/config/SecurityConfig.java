@@ -2,6 +2,7 @@ package com.cqwu.cqwu_appointment_system.config;
 
 import com.cqwu.cqwu_appointment_system.security.JwtAuthenticationTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -36,30 +37,44 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 配置CORS（跨域资源共享）
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // 禁用CSRF保护，因为我们使用无状态的JWT，不依赖Cookie
-            .csrf(csrf -> csrf.disable())
-            
-            // 设置Session管理策略为无状态（STATELESS），不创建HttpSession
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // 配置HTTP请求的授权规则
-            .authorizeHttpRequests(auth -> auth
-                // 允许所有OPTIONS预检请求
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                
-                // 公开访问认证相关的所有API端点
-                .requestMatchers("/api/auth/**").permitAll()
-                
-                // 除上述之外的所有其他请求都需要进行身份认证
-                .anyRequest().authenticated()
-            )
-            
-            // 将自定义的JWT认证过滤器添加到Spring Security的过滤器链中
-            // 它会在处理用户名密码认证的过滤器之前执行
-            .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                // 配置CORS（跨域资源共享）
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // 禁用CSRF保护，因为我们使用无状态的JWT，不依赖Cookie
+                .csrf(csrf -> csrf.disable())
+
+                // 设置Session管理策略为无状态（STATELESS），不创建HttpSession
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // 配置HTTP请求的授权规则
+                .authorizeHttpRequests(auth -> auth
+
+                        // 放行容器的异步与错误分派，避免 SSE 断开后异步再分派触发二次鉴权
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
+
+                        // 允许所有OPTIONS预检请求
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 公开访问认证相关的所有API端点
+                        .requestMatchers("/api/auth/**").permitAll()
+
+                        // 除上述之外的所有其他请求都需要进行身份认证
+                        .anyRequest().authenticated())
+
+                // 异常处理：若响应已提交（如 SSE 流），不要再尝试写 403，避免无意义报错
+                .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
+                    if (response.isCommitted()) {
+                        // 已提交响应（例如 SSE 已开始写流），就不再写入，避免日志噪音
+                        return;
+                    }
+                    response.setStatus(403);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":403,\"msg\":\"Access Denied\"}");
+                }))
+
+                // 将自定义的JWT认证过滤器添加到Spring Security的过滤器链中
+                // 它会在处理用户名密码认证的过滤器之前执行
+                .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -71,10 +86,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 【注意】生产环境应替换为具体的前端域名
-        configuration.setAllowedOrigins(Arrays.asList("*")); 
+        configuration.setAllowedOrigins(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*")); 
-        
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -84,7 +99,8 @@ public class SecurityConfig {
      * 从AuthenticationConfiguration中获取AuthenticationManager的Bean实例。
      */
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
 }

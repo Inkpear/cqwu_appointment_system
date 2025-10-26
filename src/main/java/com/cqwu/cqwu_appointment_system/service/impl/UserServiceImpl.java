@@ -80,6 +80,19 @@ public class UserServiceImpl implements UserService {
      * {@inheritDoc}
      */
     @Override
+    public int deleteUserByIds(String[] userIds) {
+        log.info("开始批量删除用户");
+        Assert.notNull(userIds, "用户ID列表不能为空");
+        UserExample example = new UserExample();
+        example.createCriteria().andIdIn(List.of(userIds));
+
+        return userMapper.deleteByExample(example);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     @Transactional
     public int insertUser(User user) {
         log.info("开始插入新用户, User ID: {}", user.getId());

@@ -1,6 +1,7 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.domain.dto.SseNotificationEvent;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -10,6 +11,7 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -54,6 +56,8 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final ExecutorService shutdownExecutor;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public NotificationServiceImpl(
             @Value("${logging.sse.life:PT30M}") Duration sseSessionTimeout,
             @Value("${logging.sse.heartbeat.base:PT25S}") Duration heartbeatBase,
@@ -65,7 +69,8 @@ public class NotificationServiceImpl implements NotificationService {
             @Value("${logging.sse.broadcast.batch.size:50}") int broadcastBatchSize,
             @Value("${logging.sse.broadcast.batch.gap:300ms}") Duration broadcastBatchGap,
             @Value("${logging.sse.broadcast.batch.within-jitter:200ms}") Duration broadcastBatchWithinJitter,
-            TaskScheduler taskScheduler) {
+            TaskScheduler taskScheduler,
+            ApplicationEventPublisher eventPublisher) {
 
         this.sseSessionTimeoutMs = sseSessionTimeout.toMillis();
 
@@ -93,6 +98,8 @@ public class NotificationServiceImpl implements NotificationService {
                 (broadcastBatchWithinJitter != null ? broadcastBatchWithinJitter.toMillis() : 0L));
 
         this.taskScheduler = taskScheduler;
+
+        this.eventPublisher = eventPublisher;
 
         int coreCount = Runtime.getRuntime().availableProcessors();
 
@@ -197,7 +204,9 @@ public class NotificationServiceImpl implements NotificationService {
             }
         } else {
             List<EmitterEntry> list = this.emitters.get(userId);
-            sendToRole(Constants.UserRoleType.ROLE_MONITOR, eventName, data);
+            // sendToRole(Constants.UserRoleType.ROLE_MONITOR, eventName, data);
+            eventPublisher.publishEvent(new SseNotificationEvent(this, eventName, data, userId));
+
             if (list != null && !list.isEmpty()) {
                 list.forEach(entry -> sendToEmitter(entry.emitter, userId, eventName, data));
             } else {
@@ -223,12 +232,13 @@ public class NotificationServiceImpl implements NotificationService {
     public void sendToRole(String role, String eventName, Object data) {
         if (role == null)
             return;
+        eventPublisher.publishEvent(new SseNotificationEvent(this, eventName, data, List.of(role)));
+
         emitters.forEach((userId, list) -> {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                if (role.equalsIgnoreCase(entry.role)
-                        || entry.role.equalsIgnoreCase(Constants.UserRoleType.ROLE_MONITOR)) {
+                if (role.equalsIgnoreCase(entry.role)) {
                     sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });
@@ -240,14 +250,15 @@ public class NotificationServiceImpl implements NotificationService {
      */
     @Override
     public void sendToRoles(List<String> roles, String eventName, Object data) {
-        if (roles == null)
+        if (roles == null || roles.isEmpty())
             return;
+        eventPublisher.publishEvent(new SseNotificationEvent(this, eventName, data, roles));
 
         emitters.forEach((userId, list) -> {
             if (list == null || list.isEmpty())
                 return;
             list.forEach(entry -> {
-                if (roles.contains(entry.role) || entry.role.equals(Constants.UserRoleType.ROLE_MONITOR)) {
+                if (roles.contains(entry.role)) {
                     sendToEmitter(entry.emitter, userId, eventName, data);
                 }
             });

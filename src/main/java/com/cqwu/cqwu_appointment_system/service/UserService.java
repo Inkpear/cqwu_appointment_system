@@ -58,4 +58,11 @@ public interface UserService {
      * @return 封装了查询结果和分页信息的 Spring Data Page 对象。
      */
     Page<User> searchUsers(UserQuery query);
+
+    /**
+     * 根据ID列表批量删除用户。
+     * @param userIds
+     * @return
+     */
+    int deleteUserByIds(String[] userIds);
 }

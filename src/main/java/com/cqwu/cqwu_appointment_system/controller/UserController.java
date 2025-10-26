@@ -2,6 +2,7 @@ package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
+import com.cqwu.cqwu_appointment_system.domain.dto.CreateUserDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateUserRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateUserRoleRequest;
@@ -16,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * @description 负责处理用户管理相关的API请求。
@@ -42,6 +45,26 @@ public class UserController {
         Page<User> userPage = userService.searchUsers(query);
         PageDTO<User> userPageDTO = PageDTO.fromPage(userPage);
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, userPageDTO));
+    }
+
+    /**
+     * [ROOT] 创建新用户。
+     *
+     * @param createUserDTO 包含新用户信息的请求体
+     * @return 操作成功的 ResponseEntity
+     */
+    @PostMapping
+    public ResponseEntity<AjaxResult> createUser(@RequestBody @Valid CreateUserDTO createUserDTO) {
+        log.info("管理员正在创建新用户, 用户ID: {}", createUserDTO.getId());
+
+        User newUser = new User();
+        BeanUtils.copyProperties(createUserDTO, newUser);
+
+        userService.insertUser(newUser);
+
+        return ResponseEntity
+                .ok(AjaxResult.created(Constants.CREATE_SUCCESS, userService.selectUserById(createUserDTO.getId())));
+
     }
 
     /**
@@ -72,7 +95,6 @@ public class UserController {
             @RequestBody @Valid UpdateUserRequest updateUserRequest) {
         log.info("管理员正在更新用户信息, ID: {}", id);
         User userToUpdate = new User();
-        // 使用 BeanUtils 简化属性复制
         BeanUtils.copyProperties(updateUserRequest, userToUpdate);
         userToUpdate.setId(id);
 
@@ -82,6 +104,17 @@ public class UserController {
             return ResponseEntity.ok(AjaxResult.success(Constants.DATA_NOT_CHANGED));
         }
         return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
+    }
+    
+
+    @DeleteMapping
+    public ResponseEntity<AjaxResult> deleteUsers(@RequestBody String[] userIds) {
+        log.info("管理员正在批量删除用户, IDs: {}", (Object) userIds);
+
+        int deletedCount = userService.deleteUserByIds(userIds);
+
+        return ResponseEntity.ok(AjaxResult.success(
+                String.format("成功删除 %d 个用户", deletedCount)));
     }
 
     /**
