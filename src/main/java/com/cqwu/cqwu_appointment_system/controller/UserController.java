@@ -53,7 +53,7 @@ public class UserController {
      * @param id 用户ID
      * @return 用户姓名
      */
-    @GetMapping("/names/{id}")
+    @GetMapping("/name/{id}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getUserName(@PathVariable String id) {
         log.info("正在查询用户姓名, ID: {}", id);
