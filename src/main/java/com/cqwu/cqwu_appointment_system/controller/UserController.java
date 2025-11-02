@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RestController
 @RequestMapping("/api/users")
 @Slf4j
-@PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
 public class UserController {
 
     @Autowired
@@ -40,11 +39,31 @@ public class UserController {
      * @return 分页的用户列表
      */
     @GetMapping
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> listUsers(@Valid UserQuery query) {
         log.info("管理员正在查询用户列表, 查询参数: {}", query);
         Page<User> userPage = userService.searchUsers(query);
         PageDTO<User> userPageDTO = PageDTO.fromPage(userPage);
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, userPageDTO));
+    }
+
+    /**
+     * [AUTHENTICATED] 根据用户ID获取用户姓名。
+     *
+     * @param id 用户ID
+     * @return 用户姓名
+     */
+    @GetMapping("/names/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getUserName(@PathVariable String id) {
+        log.info("正在查询用户姓名, ID: {}", id);
+        User user = userService.selectUserById(id);
+
+        if (user == null) {
+            throw new IllegalArgumentException(Constants.USER_NOT_FOUND);
+        }
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, user.getName()));
     }
 
     /**
@@ -54,6 +73,7 @@ public class UserController {
      * @return 操作成功的 ResponseEntity
      */
     @PostMapping
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> createUser(@RequestBody @Valid CreateUserDTO createUserDTO) {
         log.info("管理员正在创建新用户, 用户ID: {}", createUserDTO.getId());
 
@@ -74,6 +94,7 @@ public class UserController {
      * @return 用户详情
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> getUserById(@PathVariable String id) {
         log.info("管理员正在查询用户详情, ID: {}", id);
         User user = userService.selectUserById(id);
@@ -91,6 +112,7 @@ public class UserController {
      * @return 操作成功的 ResponseEntity
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> updateUser(@PathVariable String id,
             @RequestBody @Valid UpdateUserRequest updateUserRequest) {
         log.info("管理员正在更新用户信息, ID: {}", id);
@@ -105,9 +127,9 @@ public class UserController {
         }
         return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS));
     }
-    
 
     @DeleteMapping
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> deleteUsers(@RequestBody String[] userIds) {
         log.info("管理员正在批量删除用户, IDs: {}", (Object) userIds);
 
@@ -125,6 +147,7 @@ public class UserController {
      * @return 操作成功的 ResponseEntity
      */
     @PutMapping("/{id}/role")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> updateUserRole(@PathVariable String id,
             @RequestBody @Valid UpdateUserRoleRequest userRoleInfo) {
         String newRole = userRoleInfo.getRole();
