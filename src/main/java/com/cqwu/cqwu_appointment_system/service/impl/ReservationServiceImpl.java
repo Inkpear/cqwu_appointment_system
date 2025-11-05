@@ -339,10 +339,10 @@ public class ReservationServiceImpl implements ReservationService {
 
         log.info("【系统】已自动批准预约 ID: {}", reservation.getId());
 
-        notificationService.sendToRole(
-                Constants.UserRoleType.ROLE_MONITOR,
+        notificationService.sendNotification(
+                reservation.getCreatorUserId(),
                 Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                "有预约状态已自动更新为进行中");
+                "您的预约状态已自动更新为已批准");
         return reservationMapper.selectByPrimaryKey(reservation.getId());
     }
 
@@ -364,10 +364,10 @@ public class ReservationServiceImpl implements ReservationService {
 
         log.warn("【系统】已自动拒绝预约 ID: {}", reservation.getId());
 
-        notificationService.sendToRole(
-                Constants.UserRoleType.ROLE_MONITOR,
+        notificationService.sendNotification(
+                reservation.getCreatorUserId(),
                 Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                "有预约状态已自动更新为已拒绝");
+                "您的预约已被系统自动拒绝，原因：" + reason);
 
         return reservationMapper.selectByPrimaryKey(reservation.getId());
     }

@@ -115,7 +115,7 @@ public class ReservationStatusUpdater {
                 reservation.getEndDatetime())) {
             reservationService.approveBySystem(reservation);
         } else {
-            reservationService.rejectBySystem(reservation, "时间段已被占用，系统自动拒绝");
+            reservationService.rejectBySystem(reservation, "时间段已被占用");
         }
     }
 
@@ -161,7 +161,7 @@ public class ReservationStatusUpdater {
     }
 
     /**
-     * 批量处理已过期的 PENDING 申请，将其状态更新为 EXPIRED。
+     * 批量处理已过期的 PENDING 申请，将其状态更新为 EXPIRED，并逐一通知申请人。
      */
     private void processExpired() {
         LocalDateTime now = LocalDateTime.now();
@@ -171,14 +171,30 @@ public class ReservationStatusUpdater {
                 .andStatusEqualTo(Constants.ReservationStatus.PENDING)
                 .andStartDatetimeLessThan(now);
 
-        ReservationWithBLOBs update = new ReservationWithBLOBs();
-        update.setStatus(Constants.ReservationStatus.EXPIRED);
-        int count = reservationMapper.updateByExampleSelective(update, example);
-        if (count > 0) {
-            log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", count);
-            notificationService.sendNotification(Constants.SseBroadcast.ALL_USERS,
-                    Constants.SseEvent.RESERVATION_AUTO_UPDATED,
-                    "有待审批的预约已自动过期");
+        List<ReservationWithBLOBs> expiredList = reservationMapper.selectByExampleWithBLOBs(example);
+        if (expiredList.isEmpty()) {
+            return;
+        }
+
+        int updatedCount = 0;
+        for (ReservationWithBLOBs reservation : expiredList) {
+            ReservationWithBLOBs update = new ReservationWithBLOBs();
+            update.setId(reservation.getId());
+            update.setStatus(Constants.ReservationStatus.EXPIRED);
+            if (reservationMapper.updateByPrimaryKeySelective(update) > 0) {
+                updatedCount++;
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("reservationId", reservation.getId());
+                payload.put("venueId", reservation.getVenueId());
+                payload.put("status", Constants.ReservationStatus.EXPIRED);
+                payload.put("message", "您的预约已自动过期");
+                notificationService.sendNotification(reservation.getCreatorUserId(),
+                        Constants.SseEvent.RESERVATION_EXPIRED, payload);
+            }
+        }
+
+        if (updatedCount > 0) {
+            log.info("【定时任务】{} 个待审批申请已变更为 EXPIRED", updatedCount);
         }
     }
 }

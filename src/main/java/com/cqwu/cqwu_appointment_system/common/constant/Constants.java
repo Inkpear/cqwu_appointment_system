@@ -127,7 +127,7 @@ public class Constants {
         public static final String COMPLETED = "COMPLETED"; // 已完成
         public static final String REJECTED = "REJECTED"; // 已拒绝
         public static final String CANCELLED = "CANCELLED"; // 已取消
-        public static final String EXPIRED = "EXPIRED"; // 已过期（待审批的申请错过了开始时间）
+        public static final String  EXPIRED= "EXPIRED"; // 已过期（待审批的申请错过了开始时间）
     }
 
     /**
@@ -153,6 +153,7 @@ public class Constants {
         public static final String VENUE_CATEGORY_DELETED = "venue-category-deleted";
         public static final String VENUE_CATEGORY_RULE_UPDATED = "venue-category-rule-updated";
         public static final String RESERVATION_AUTO_UPDATED = "reservation-auto-updated";
+        public static final String RESERVATION_EXPIRED = "reservation-expired";
     }
 
     /**

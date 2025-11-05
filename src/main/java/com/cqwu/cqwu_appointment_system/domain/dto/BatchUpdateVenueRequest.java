@@ -10,12 +10,13 @@ import lombok.Data;
  *              它包含一个ID列表和一份要应用于这些ID的更新数据。
  */
 @Data
+@NotNull
 public class BatchUpdateVenueRequest {
 
     @NotEmpty(message = "要更新的ID列表不能为空")
     private Long[] ids;
 
     @NotNull(message = "更新数据不能为空")
-    @Valid // 关键：启用对 UpdateVenueRequest 内部字段的级联校验
+    @Valid
     private UpdateVenueRequest venueData;
 }
