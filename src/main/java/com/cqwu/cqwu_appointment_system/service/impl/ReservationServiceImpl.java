@@ -379,9 +379,7 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public String generateQrCodeForReservation(Long reservationId, String userId) {
         ReservationWithBLOBs reservation = findAndCheckReservation(reservationId);
-        if (reservation == null) {
-            throw new IllegalArgumentException("预约 ID: " + reservationId + " 不存在");
-        }
+
         if (!reservation.getCreatorUserId().equals(userId)) {
             throw new PermissionDeniedException("您无权获取此预约的二维码");
         }
