@@ -1,6 +1,7 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.common.utils.QrCodeUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.uuid.UUID;
@@ -370,6 +371,25 @@ public class ReservationServiceImpl implements ReservationService {
                 "您的预约已被系统自动拒绝，原因：" + reason);
 
         return reservationMapper.selectByPrimaryKey(reservation.getId());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String generateQrCodeForReservation(Long reservationId, String userId) {
+        ReservationWithBLOBs reservation = findAndCheckReservation(reservationId);
+        if (reservation == null) {
+            throw new IllegalArgumentException("预约 ID: " + reservationId + " 不存在");
+        }
+        if (!reservation.getCreatorUserId().equals(userId)) {
+            throw new PermissionDeniedException("您无权获取此预约的二维码");
+        }
+        if (reservation.getAppointmentCode() == null) {
+            throw new IllegalStateException("预约 ID: " + reservationId + " 尚未批准，无法生成二维码");
+        }
+
+        return QrCodeUtils.generateQrCodeBase64(reservation.getAppointmentCode());
     }
 
     private String generateAppointmentCode() {

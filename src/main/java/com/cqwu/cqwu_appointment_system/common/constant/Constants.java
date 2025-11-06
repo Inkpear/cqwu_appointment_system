@@ -78,6 +78,8 @@ public class Constants {
     public static final Integer DEFAULT_PAGE_SIZE = 10;
     public static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
     public static final String CQWU_SYSTEM = "JIAOWU";
+    public static final String BASE64_URI_PREFIX = "data:image/png;base64,";
+
 
     /**
      * @description 用户角色类型定义。
@@ -171,5 +173,10 @@ public class Constants {
         public static final String INFO = "INFO";
         public static final String WARN = "WARN";
         public static final String ERROR = "ERROR";
+    }
+
+    public static class QrCode {
+        public static final int DEFAULT_WIDTH = 250;
+        public static final int DEFAULT_HEIGHT = 250;
     }
 }

@@ -215,6 +215,33 @@ public class ReservationController {
     }
 
     /**
+     * 获取指定预约的核验二维码。
+     * 只有预约的创建者或管理员才能获取。
+     *
+     * @param id        预约的ID
+     * @param loginUser Spring Security 自动注入的当前用户信息
+     * @return 包含二维码 Base64 Data URI 的 ResponseEntity
+     */
+    @GetMapping("/{id}/qrcode")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getReservationQrCode(
+            @PathVariable Long id,
+            @AuthenticationPrincipal LoginUser loginUser) {
+        
+        User user = loginUser.getUser();
+
+        log.info("用户 '{}' 正在请求预约 ID '{}' 的二维码", user.getId(), id);
+
+        String qrCodeBase64 = reservationService.generateQrCodeForReservation(id, user.getId());
+
+        
+        AjaxResult ajaxResult = AjaxResult.success("二维码获取成功");
+        ajaxResult.put("qrCodeBase64", qrCodeBase64);
+
+        return ResponseEntity.ok(ajaxResult);
+    }
+
+    /**
      * 动态分页查询预约列表。
      * 普通用户只能查询自己的预约，管理员可以查询所有。
      *
