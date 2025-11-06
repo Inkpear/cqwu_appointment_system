@@ -4,6 +4,10 @@ import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
 import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.security.SignatureException;
+
 import java.io.IOException;
 import java.util.Collection;
 
@@ -55,7 +59,7 @@ public class GlobalExceptionHandler {
         log.warn("试图对非法状态的对象进行操作: {}", e.getMessage());
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), e.getMessage());
     }
-    
+
     /**
      * 处理请求体丢失或格式错误的异常
      */
@@ -194,7 +198,8 @@ public class GlobalExceptionHandler {
      * 通常发生在文件读写等操作失败时。
      */
     @ExceptionHandler(IOException.class)
-    public ResponseEntity<?> handleIOException(IOException e, HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<?> handleIOException(IOException e, HttpServletRequest request,
+            HttpServletResponse response) {
         // 典型场景：SSE 客户端主动断开连接，容器抛出 IOException（如 Broken pipe）。
         // 当响应 Content-Type 为 text/event-stream 或 Accept 包含该类型时，不要再尝试写 JSON。
         String accept = request.getHeader("Accept");
@@ -222,6 +227,28 @@ public class GlobalExceptionHandler {
         String message = String.format("请求缺少必需的参数: '%s'", e.getParameterName());
         log.warn(message);
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), message);
+    }
+
+    /**
+     * 用于处理所有JWT相关异常的集中处理器。
+     * 这个处理器将被 JwtAuthenticationTokenFilter 通过 HandlerExceptionResolver 触发。
+     */
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<AjaxResult> handleJwtException(JwtException e) {
+        log.warn("JWT 校验失败: {}", e.getMessage());
+
+        String message;
+        if (e instanceof ExpiredJwtException) {
+            message = "访问令牌已过期，请刷新令牌";
+        } else if (e instanceof SignatureException) {
+            message = "无效的令牌签名";
+        } else {
+            message = "无效的访问令牌";
+        }
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(AjaxResult.error(HttpStatus.UNAUTHORIZED.value(), message));
     }
 
     /**

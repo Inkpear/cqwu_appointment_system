@@ -1,6 +1,9 @@
 package com.cqwu.cqwu_appointment_system.config;
 
+import com.cqwu.cqwu_appointment_system.common.constant.HttpStatus;
 import com.cqwu.cqwu_appointment_system.security.JwtAuthenticationTokenFilter;
+import com.cqwu.cqwu_appointment_system.security.RestAuthenticationEntryPoint;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
@@ -30,6 +33,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter;
+
+    @Autowired
+    private RestAuthenticationEntryPoint unauthorizedHandler;
 
     /**
      * 配置安全过滤器链，定义所有HTTP请求的安全处理规则。
@@ -62,15 +68,20 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
 
                 // 异常处理：若响应已提交（如 SSE 流），不要再尝试写 403，避免无意义报错
-                .exceptionHandling(ex -> ex.accessDeniedHandler((request, response, accessDeniedException) -> {
-                    if (response.isCommitted()) {
-                        // 已提交响应（例如 SSE 已开始写流），就不再写入，避免日志噪音
-                        return;
-                    }
-                    response.setStatus(403);
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write("{\"code\":403,\"msg\":\"Access Denied\"}");
-                }))
+                .exceptionHandling(handler -> handler
+                    // 配置认证入口点，处理 401 Unauthorized (未认证或认证失败)
+                    .authenticationEntryPoint(unauthorizedHandler)
+                    // 配置访问拒绝处理器，处理 403 Forbidden (已认证但无权限)
+                    .accessDeniedHandler((request, response, accessDeniedException) -> {
+                        if (response.isCommitted()) {
+                            return;
+                        }
+                        response.setStatus(HttpStatus.FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        // 建议返回与 AjaxResult 结构一致的 JSON
+                        response.getWriter().write("{\"code\":403,\"msg\":\"权限不足，无法访问此资源\"}");
+                    })
+                )
 
                 // 将自定义的JWT认证过滤器添加到Spring Security的过滤器链中
                 // 它会在处理用户名密码认证的过滤器之前执行
