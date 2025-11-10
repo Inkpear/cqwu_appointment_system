@@ -1,5 +1,6 @@
--- DROP DATABASE IF EXISTS cqwu;
--- CREATE DATABASE cqwu CHARACTER set utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP DATABASE IF EXISTS cqwu;
+CREATE DATABASE cqwu CHARACTER set utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE cqwu
 DROP TABLE IF EXISTS `venue`;
 
