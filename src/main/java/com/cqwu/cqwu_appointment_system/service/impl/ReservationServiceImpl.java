@@ -10,6 +10,7 @@ import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.*;
 import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
 import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
+import com.cqwu.cqwu_appointment_system.framework.redis.RedisCache;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
@@ -18,11 +19,14 @@ import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @description 预约服务实现类，负责处理所有预约相关的业务逻辑。
@@ -57,6 +62,9 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Autowired
     NotificationServiceImpl notificationService;
+
+    @Autowired
+    private RedisCache redisCache;
 
     /**
      * 创建一个新的预约申请。
@@ -377,17 +385,42 @@ public class ReservationServiceImpl implements ReservationService {
      * {@inheritDoc}
      */
     @Override
-    public String generateQrCodeForReservation(Long reservationId, String userId) {
-        ReservationWithBLOBs reservation = findAndCheckReservation(reservationId);
-
-        if (!reservation.getCreatorUserId().equals(userId)) {
-            throw new PermissionDeniedException("您无权获取此预约的二维码");
-        }
-        if (reservation.getAppointmentCode() == null) {
-            throw new IllegalStateException("预约 ID: " + reservationId + " 尚未批准，无法生成二维码");
+    public String generateQrCodeForReservation(Long reservationId, User currentUser) {
+        final String cacheKey = Constants.BASE64_URI_PREFIX + reservationId;
+        String cachedQrCode = redisCache.getCacheObject(cacheKey);
+        if (cachedQrCode != null) {
+            log.debug("二维码缓存命中, ID: {}", reservationId);
+            return cachedQrCode;
         }
 
-        return QrCodeUtils.generateQrCodeBase64(reservation.getAppointmentCode());
+
+        ReservationWithBLOBs reservation = reservationMapper.selectByPrimaryKey(reservationId);
+        if (reservation == null) {
+            throw new EntityNotFoundException("预约不存在, ID: " + reservationId);
+        }
+
+
+        boolean isAdmin = Arrays.asList(Constants.UserRoleType.ROLE_ADMIN, Constants.UserRoleType.ROLE_ROOT)
+                                .contains(currentUser.getRole());
+
+        if (!reservation.getCreatorUserId().equals(currentUser.getId()) && !isAdmin) {
+            throw new AccessDeniedException("您无权访问此预约的二维码");
+        }
+
+        String verificationCode = reservation.getAppointmentCode();
+        if (verificationCode == null || verificationCode.isEmpty()) {
+            throw new IllegalStateException("该预约缺少核验码，无法生成二维码");
+        }
+
+        log.debug("二维码缓存未命中, 正在为预约 ID '{}' 生成新的二维码", reservationId);
+        String qrCodeBase64 = QrCodeUtils.generateQrCodeBase64(verificationCode);
+
+        long ttl = Duration.between(LocalDateTime.now(), reservation.getEndDatetime()).toMinutes() + 60;
+        if (ttl > 0) {
+           redisCache.setCacheObject(cacheKey, qrCodeBase64, ttl, TimeUnit.MINUTES);
+        }
+
+        return qrCodeBase64;
     }
 
     private String generateAppointmentCode() {

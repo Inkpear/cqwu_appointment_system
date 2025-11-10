@@ -232,7 +232,7 @@ public class ReservationController {
 
         log.info("用户 '{}' 正在请求预约 ID '{}' 的二维码", user.getId(), id);
 
-        String qrCodeBase64 = reservationService.generateQrCodeForReservation(id, user.getId());
+        String qrCodeBase64 = reservationService.generateQrCodeForReservation(id, user);
 
         
         AjaxResult ajaxResult = AjaxResult.success("二维码获取成功");

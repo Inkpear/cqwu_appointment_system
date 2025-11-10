@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -249,6 +251,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(AjaxResult.error(HttpStatus.UNAUTHORIZED.value(), message));
+    }
+
+    /**
+     * 处理根据ID查询数据时未找到对应实体的异常 (404 Not Found) - 数据级别
+     * 例如，调用 service.findById(99L) 时，数据库中没有ID为99的记录。
+     */
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<AjaxResult> handleEntityNotFoundException(EntityNotFoundException e) {
+        log.warn("请求的业务实体不存在: {}", e.getMessage());
+
+        String message = e.getMessage() != null ? e.getMessage() : "您请求的资源不存在";
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(AjaxResult.error(HttpStatus.NOT_FOUND.value(), message));
     }
 
     /**

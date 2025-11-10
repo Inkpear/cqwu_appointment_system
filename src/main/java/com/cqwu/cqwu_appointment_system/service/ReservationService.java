@@ -10,6 +10,8 @@ import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 
+import jakarta.persistence.EntityNotFoundException;
+
 /**
  * @description 预约服务接口，定义了所有与预约申请相关的业务操作。
  */
@@ -102,11 +104,14 @@ public interface ReservationService {
     ReservationWithBLOBs rejectBySystem(ReservationWithBLOBs reservation, String reason);
 
     /**
-     * 为指定的预约生成对应的二维码。
+     * 为指定的预约生成核验二维码。
+     * 内部会处理权限校验和缓存。
      *
-     * @param reservationId 预约的主键ID。
-     * @param userId        请求二维码的用户ID，用于权限校验。
-     * @return 包含二维码图片的 Base64 编码字符串（Data URI 格式）。
+     * @param reservationId 要生成二维码的预约ID
+     * @param currentUser   当前操作的用户
+     * @return 二维码的 Base64 Data URI 字符串
+     * @throws AccessDeniedException   如果用户无权访问该预约
+     * @throws EntityNotFoundException 如果预约不存在
      */
-    String generateQrCodeForReservation(Long reservationId, String userId);
+    String generateQrCodeForReservation(Long reservationId, User currentUser);
 }
