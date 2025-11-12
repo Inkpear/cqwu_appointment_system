@@ -146,7 +146,6 @@ public class VenueServiceImpl implements VenueService {
 
         VenueExample example = buildVenueExample(query);
 
-        // 使用 selectByExampleWithBLOBs 是正确的，因为它需要加载 TEXT 类型的 equipment 字段
         List<Venue> venues = venueMapper.selectByExampleWithBLOBs(example);
 
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
@@ -177,22 +176,18 @@ public class VenueServiceImpl implements VenueService {
         Assert.notEmpty(ids, "要更新的ID列表不能为空");
         Assert.notNull(venueUpdateData, "更新数据不能为空");
 
-        // 先对 DTO 自身进行基础校验
         validateCategoryId(venueUpdateData.getCategoryId());
         ValidationUtils.requireStartBeforeEnd(venueUpdateData.getOpenTime(), venueUpdateData.getCloseTime(),
                 "批量更新失败：指定的关闭时间必须晚于开放时间");
 
-        // 如果需要进行时间校验（即 DTO 中至少包含一个时间字段），则必须从数据库预加载数据
         if (venueUpdateData.getOpenTime() != null || venueUpdateData.getCloseTime() != null) {
             List<Long> idList = Arrays.asList(ids);
             VenueExample example = new VenueExample();
             example.createCriteria().andIdIn(idList);
 
-            // 一次性查询所有待更新的场所
             Map<Long, Venue> existingVenuesMap = venueMapper.selectByExample(example).stream()
                     .collect(Collectors.toMap(Venue::getId, Function.identity()));
 
-            // 在内存中对每个场所进行合并校验
             for (Long id : idList) {
                 Venue existingVenue = existingVenuesMap.get(id);
                 if (existingVenue != null) {
@@ -207,9 +202,8 @@ public class VenueServiceImpl implements VenueService {
             }
         }
 
-        // 执行批量更新
-        venueUpdateData.setId(null); // 防止更新ID
-        venueUpdateData.setRealtimeStatus(null); // 不允许手动更新实时状态
+        venueUpdateData.setId(null);
+        venueUpdateData.setRealtimeStatus(null);
         List<Long> idList = Arrays.asList(ids);
         int result = venueMapper.updateVenuesBatch(venueUpdateData, idList);
         log.info("批量更新操作完成, 影响行数: {}", result);
@@ -222,27 +216,24 @@ public class VenueServiceImpl implements VenueService {
     @Override
     public List<CalendarEventDTO> getVenueScheduleForUser(Long venueId, LocalDateTime start, LocalDateTime end,
             User currentUser) {
-        // 获取基础的 TimeBlock 数据
+
         List<TimeBlock> timeBlocks = timeBlockService.findTimeBlocksForVenue(venueId, start, end);
         if (timeBlocks.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 提取所有关联的预约ID
         List<Long> reservationIds = timeBlocks.stream()
                 .filter(tb -> Constants.TimeBlockType.APPOINTMENT.equals(tb.getBlockType())
                         && tb.getReservationId() != null)
                 .map(TimeBlock::getReservationId)
                 .collect(Collectors.toList());
 
-        // 一次性批量查询所有相关的预约信息
         Map<Long, Reservation> reservationMap = reservationService.findReservationsByIds(reservationIds)
                 .stream()
                 .collect(Collectors.toMap(Reservation::getId, Function.identity()));
 
-        // 将 TimeBlock 转换为 DTO，并处理“是否为本人预约”的逻辑
         return timeBlocks.stream().map(tb -> {
-            CalendarEventDTO dto = CalendarEventDTO.from(tb); // 使用 DTO 的工厂方法
+            CalendarEventDTO dto = CalendarEventDTO.from(tb);
 
             boolean isOwned = false;
             if (Constants.TimeBlockType.APPOINTMENT.equals(tb.getBlockType()) && tb.getReservationId() != null) {
@@ -282,6 +273,14 @@ public class VenueServiceImpl implements VenueService {
             criteria.andRequiresApprovalEqualTo(query.getRequiresApproval());
         if (!Objects.isNull(query.getCategoryId()))
             criteria.andCategoryIdEqualTo(query.getCategoryId());
+            
+        if (!Objects.isNull(query.getNameOrderAsc())) {
+            if (query.getNameOrderAsc()) {
+                example.setOrderByClause("name ASC");
+            } else {
+                example.setOrderByClause("name DESC");
+            }
+        }
 
         return example;
     }

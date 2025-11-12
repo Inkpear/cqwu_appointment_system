@@ -65,7 +65,6 @@ public class VenueStatusUpdater {
         for (Venue venue : allVenues) {
             String newRealtimeStatus = calculateNewStatus(venue, occupiedVenueIds, now.toLocalTime());
 
-            // 仅当状态发生变化时才加入更新列表
             if (!newRealtimeStatus.equals(venue.getRealtimeStatus())) {
                 Venue updateEntity = new Venue();
                 updateEntity.setId(venue.getId());
@@ -74,7 +73,6 @@ public class VenueStatusUpdater {
             }
         }
 
-        // 如果有需要更新的场所，则执行批量更新
         if (!venuesToUpdate.isEmpty()) {
             int updatedCount = venueService.updateRealtimeStatusBatch(venuesToUpdate);
             log.info("成功更新了 {} 个场所的实时状态。", updatedCount);
@@ -99,23 +97,19 @@ public class VenueStatusUpdater {
      * @return 计算出的最新实时状态字符串
      */
     private String calculateNewStatus(Venue venue, Set<Long> occupiedVenueIds, LocalTime nowTime) {
-        // 优先级1：如果场所的基础状态不是"可用"（如"维修中"），则实时状态直接等于基础状态
         if (!Constants.VenueBaseStatus.AVAILABLE.equalsIgnoreCase(venue.getBaseStatus())) {
             return venue.getBaseStatus();
         }
 
-        // 优先级2：检查是否在开放时间内，如果不在则为"闭馆"
         if (venue.getOpenTime() == null || venue.getCloseTime() == null ||
                 nowTime.isBefore(venue.getOpenTime()) || nowTime.isAfter(venue.getCloseTime())) {
             return Constants.VenueRealtimeStatus.CLOSED;
         }
 
-        // 优先级3：检查是否被占用
         if (occupiedVenueIds.contains(venue.getId())) {
             return Constants.VenueRealtimeStatus.OCCUPIED;
         }
 
-        // 优先级4：以上都不是，则为"可用"
         return Constants.VenueRealtimeStatus.AVAILABLE;
     }
 

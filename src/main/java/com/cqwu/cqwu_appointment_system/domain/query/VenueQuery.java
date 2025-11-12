@@ -21,4 +21,5 @@ public class VenueQuery {
     private String baseStatus;
     private String realtimeStatus;
     private Long categoryId;
+    private Boolean nameOrderAsc;
 }
