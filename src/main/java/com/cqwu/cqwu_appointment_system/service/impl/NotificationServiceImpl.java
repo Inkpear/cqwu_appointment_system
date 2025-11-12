@@ -133,7 +133,7 @@ public class NotificationServiceImpl implements NotificationService {
         emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(new EmitterEntry(emitter, role));
 
         emitter.onCompletion(() -> {
-            log.info("用户 '{}' 的SSE连接已完成", userId);
+            log.debug("用户 '{}' 的SSE连接已完成", userId);
             removeEmitter(userId, emitter);
         });
         emitter.onTimeout(() -> {
@@ -158,7 +158,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void sendNotification(String userId, String eventName, Object data) {
         if (Constants.SseBroadcast.ALL_USERS.equals(userId)) {
-            log.info("正在向所有在线用户广播事件 '{}'", eventName);
+            log.debug("正在向所有在线用户广播事件 '{}'", eventName);
             List<Target> targets = new ArrayList<>();
             emitters.forEach((id, list) -> {
                 if (list == null || list.isEmpty())
@@ -323,7 +323,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private void doHeartbeatOnce() {
         if (isShuttingDown.get()) {
-            log.info("SSE 服务正在关闭，跳过此次心跳任务。");
+            log.debug("SSE 服务正在关闭，跳过此次心跳任务。");
             return;
         }
 
@@ -346,16 +346,16 @@ public class NotificationServiceImpl implements NotificationService {
      */
     @PreDestroy
     public void shutdown() {
-        log.info("【SSE 服务】正在关闭...");
+        log.debug("【SSE 服务】正在关闭...");
 
         isShuttingDown.set(true);
 
         if (heartbeatFuture != null) {
             heartbeatFuture.cancel(false);
-            log.info("【SSE 服务】自适应心跳任务已停止。");
+            log.debug("【SSE 服务】自适应心跳任务已停止。");
         }
 
-        log.info("【SSE 服务】正在并行关闭所有活动的 SSE 连接...");
+        log.debug("【SSE 服务】正在并行关闭所有活动的 SSE 连接...");
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         emitters.forEach((userId, list) -> {
@@ -375,7 +375,7 @@ public class NotificationServiceImpl implements NotificationService {
 
         try {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
-            log.info("【SSE 服务】所有 SSE 连接关闭任务已完成。");
+            log.debug("【SSE 服务】所有 SSE 连接关闭任务已完成。");
         } catch (Exception e) {
             log.error("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。");
         }
@@ -394,6 +394,6 @@ public class NotificationServiceImpl implements NotificationService {
             Thread.currentThread().interrupt();
         }
 
-        log.info("【SSE 服务】服务已完全停止。");
+        log.debug("【SSE 服务】服务已完全停止。");
     }
 }

@@ -96,4 +96,13 @@ public interface TimeBlockService {
      * @return 成功删除的记录数。
      */
     int deleteCourseTimeBlocksByRange(Long venueId, LocalDateTime start, LocalDateTime end);
+
+    /**
+     * 清理所有早于指定截止时间的 TimeBlock 记录。
+     * 用于定期维护数据库，删除过期的时间占用数据。
+     *
+     * @param cutoffDateTime 截止时间，所有早于此时间的 TimeBlock 都将被删除。
+     * @return 成功删除的记录数量。
+     */
+    int cleanTimeBlocksOlderThan(LocalDateTime cutoffDateTime);
 }

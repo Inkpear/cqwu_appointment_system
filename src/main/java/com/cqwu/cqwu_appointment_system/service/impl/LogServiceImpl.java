@@ -189,7 +189,7 @@ public class LogServiceImpl implements LogService {
      */
     @Override
     public Page<FrontendLogWithBLOBs> queryFrontendLogs(FrontendLogQuery query) {
-        log.info("开始根据条件分页查询前端日志, 查询参数: {}", query);
+        log.debug("开始根据条件分页查询前端日志, 查询参数: {}", query);
 
         Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
         Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
@@ -217,7 +217,7 @@ public class LogServiceImpl implements LogService {
         List<FrontendLogWithBLOBs> logs = frontendLogMapper.selectByExampleWithBLOBs(example);
         PageInfo<FrontendLogWithBLOBs> pageInfo = new PageInfo<>(logs);
 
-        log.info("前端日志查询完成, 共找到 {} 条数据", pageInfo.getTotal());
+        log.debug("前端日志查询完成, 共找到 {} 条数据", pageInfo.getTotal());
 
         return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
     }

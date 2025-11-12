@@ -78,7 +78,6 @@ public class SecurityConfig {
                         }
                         response.setStatus(HttpStatus.FORBIDDEN);
                         response.setContentType("application/json;charset=UTF-8");
-                        // 建议返回与 AjaxResult 结构一致的 JSON
                         response.getWriter().write("{\"code\":403,\"msg\":\"权限不足，无法访问此资源\"}");
                     })
                 )

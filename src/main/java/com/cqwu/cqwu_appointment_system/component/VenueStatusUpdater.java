@@ -46,7 +46,7 @@ public class VenueStatusUpdater {
      * 流程：获取当前占用信息 -> 遍历所有场所 -> 计算新状态 -> 批量更新有变化的场所。
      */
     @Scheduled(cron = "0 * * * * ?")
-    @Transactional // 为整个更新操作添加事务性，确保数据一致性
+    @Transactional
     public void updateVenueRealtimeStatus() {
         log.info("开始执行场所实时状态更新任务...");
 
@@ -57,11 +57,9 @@ public class VenueStatusUpdater {
             return;
         }
 
-        // 获取当前时间
         LocalDateTime now = LocalDateTime.now();
         Set<Long> occupiedVenueIds = getCurrentlyOccupiedVenueIds(now);
 
-        // 计算并收集状态需要更新的场所
         for (Venue venue : allVenues) {
             String newRealtimeStatus = calculateNewStatus(venue, occupiedVenueIds, now.toLocalTime());
 

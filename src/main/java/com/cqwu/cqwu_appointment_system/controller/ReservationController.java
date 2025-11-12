@@ -120,7 +120,6 @@ public class ReservationController {
                 approvalComment);
         ReservationWithBLOBs approvedReservation = reservationService.approveReservation(request);
 
-        // 向用户发送通知
         notificationService.sendNotification(
                 approvedReservation.getCreatorUserId(),
                 Constants.SseEvent.RESERVATION_APPROVED,
@@ -153,7 +152,6 @@ public class ReservationController {
                 request.getApprovalComment());
         ReservationWithBLOBs rejectedReservation = reservationService.rejectReservation(updateRequest);
 
-        // 向用户发送通知
         notificationService.sendNotification(
                 rejectedReservation.getCreatorUserId(),
                 Constants.SseEvent.RESERVATION_REJECTED,
@@ -260,7 +258,6 @@ public class ReservationController {
                 currentUser.getId(),
                 query);
 
-        // 如果不是管理员，则强制查询条件为当前用户
         if (!Arrays.asList(
                 Constants.UserRoleType.ROLE_ADMIN,
                 Constants.UserRoleType.ROLE_ROOT).contains(currentUser.getRole())) {

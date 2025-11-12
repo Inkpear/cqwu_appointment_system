@@ -44,19 +44,17 @@ public class VenueCategoryRuleServiceImpl implements VenueCategoryRuleService {
      */
     @Override
     public int addRule(VenueCategoryRule rule) {
-        log.info("正在为分类 ID: {} 添加新的准入规则: {}", rule.getCategoryId(), rule);
+        log.debug("正在为分类 ID: {} 添加新的准入规则: {}", rule.getCategoryId(), rule);
 
         Assert.notNull(rule, "规则对象不能为空");
         Assert.notNull(rule.getCategoryId(), "关联的分类ID不能为空");
         Assert.notNull(rule.getAllowedUserType(), "允许的用户类型不能为空");
 
-        // 校验父实体（场所分类）是否存在
         VenueCategory category = venueCategoryMapper.selectByPrimaryKey(rule.getCategoryId());
         if (category == null) {
             throw new IllegalArgumentException("无法添加规则，ID为 " + rule.getCategoryId() + " 的场所分类不存在");
         }
 
-        // 校验规则是否已重复（防止违反数据库 UNIQUE 约束）
         VenueCategoryRuleExample example = new VenueCategoryRuleExample();
         example.createCriteria()
                 .andCategoryIdEqualTo(rule.getCategoryId())
@@ -66,7 +64,6 @@ public class VenueCategoryRuleServiceImpl implements VenueCategoryRuleService {
             throw new IllegalArgumentException("已存在相同的准入规则，请勿重复添加");
         }
 
-        // 执行插入
         rule.setId(null);
         return ruleMapper.insertSelective(rule);
     }
@@ -82,8 +79,7 @@ public class VenueCategoryRuleServiceImpl implements VenueCategoryRuleService {
      */
     @Override
     public int deleteRule(Long ruleId) {
-        log.info("正在删除准入规则, ID: {}", ruleId);
-        // 增加参数校验
+        log.debug("正在删除准入规则, ID: {}", ruleId);
         Assert.notNull(ruleId, "要删除的规则ID不能为空");
         return ruleMapper.deleteByPrimaryKey(ruleId);
     }

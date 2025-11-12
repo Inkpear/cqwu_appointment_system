@@ -52,14 +52,14 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public User loginOrSyncUser(String userId) {
         // TODO: 等待后续补充CAS对接代码
-        log.info("用户登录或同步, User ID: {}", userId);
+        log.debug("用户登录或同步, User ID: {}", userId);
         Assert.hasText(userId, "用户ID不能为空");
 
         User user = this.selectUserById(userId);
         LocalDateTime loginTime = LocalDateTime.now();
 
         if (user == null) {
-            log.info("用户 {} 在本地不存在，将创建新用户", userId);
+            log.debug("用户 {} 在本地不存在，将创建新用户", userId);
             user = new User();
             user.setId(userId);
             user.setName("新用户-" + userId); // 默认名称，后续可由CAS信息覆盖
@@ -67,9 +67,9 @@ public class UserServiceImpl implements UserService {
             user.setRole(Constants.UserRoleType.ROLE_USER.toLowerCase()); // 默认角色
             user.setLastLoginTime(loginTime);
             this.insertUser(user);
-            log.info("新用户 {} 创建成功", userId);
+            log.debug("新用户 {} 创建成功", userId);
         } else {
-            log.info("用户 {} 已存在，更新其最后登录时间", userId);
+            log.debug("用户 {} 已存在，更新其最后登录时间", userId);
             this.updateLoginTimeById(userId, loginTime);
             user.setLastLoginTime(loginTime); // 更新内存中对象的状态以返回
         }
@@ -81,7 +81,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public int deleteUserByIds(String[] userIds) {
-        log.info("开始批量删除用户");
+        log.debug("开始批量删除用户");
         Assert.notNull(userIds, "用户ID列表不能为空");
         UserExample example = new UserExample();
         example.createCriteria().andIdIn(List.of(userIds));
@@ -95,7 +95,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int insertUser(User user) {
-        log.info("开始插入新用户, User ID: {}", user.getId());
+        log.debug("开始插入新用户, User ID: {}", user.getId());
         Assert.notNull(user, "User对象不能为空");
         Assert.hasText(user.getId(), "用户ID不能为空");
         return userMapper.insertSelective(user);
@@ -138,7 +138,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int updateUser(User user) {
-        log.info("开始更新用户信息, User ID: {}", user.getId());
+        log.debug("开始更新用户信息, User ID: {}", user.getId());
         Assert.notNull(user, "User对象不能为空");
         Assert.hasText(user.getId(), "更新用户时，用户ID不能为空");
 
@@ -161,7 +161,7 @@ public class UserServiceImpl implements UserService {
      */
     @Override
     public Page<User> searchUsers(UserQuery query) {
-        log.info("开始根据条件分页查询用户, 查询参数: {}", query);
+        log.debug("开始根据条件分页查询用户, 查询参数: {}", query);
 
         Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
         Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
@@ -187,7 +187,7 @@ public class UserServiceImpl implements UserService {
         List<User> users = userMapper.selectByExample(example);
         PageInfo<User> pageInfo = new PageInfo<>(users);
 
-        log.info("用户查询完成, 共找到 {} 条数据", pageInfo.getTotal());
+        log.debug("用户查询完成, 共找到 {} 条数据", pageInfo.getTotal());
         return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
     }
 }

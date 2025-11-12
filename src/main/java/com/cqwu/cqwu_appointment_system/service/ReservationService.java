@@ -114,4 +114,12 @@ public interface ReservationService {
      * @throws EntityNotFoundException 如果预约不存在
      */
     String generateQrCodeForReservation(Long reservationId, User currentUser);
+
+    /**
+     * 清理所有关联场所已被删除的预约记录。
+     * 用于定期维护数据库，删除无效的预约数据。
+     *
+     * @return 成功删除的预约记录数量。
+     */
+    int cleanReservationsWhereVenueNotExists();
 }

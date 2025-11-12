@@ -48,7 +48,6 @@ public class VenueCategoryRuleController {
     public ResponseEntity<AjaxResult> addRule(@RequestBody @Valid VenueCategoryRule rule) {
         log.info("正在添加新的准入规则: {}", rule);
 
-        // Service层会在失败时抛出异常，由GlobalExceptionHandler处理
         venueCategoryRuleService.addRule(rule);
 
         notificationService.sendNotification(
@@ -56,7 +55,6 @@ public class VenueCategoryRuleController {
                 Constants.SseEvent.VENUE_CATEGORY_RULE_UPDATED,
                 "list_updated");
 
-        // 返回 201 Created，并使用 created 方法确保响应体内 code 也为 201
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(AjaxResult.created(Constants.CREATE_SUCCESS, rule));
     }
@@ -75,7 +73,6 @@ public class VenueCategoryRuleController {
         int result = venueCategoryRuleService.deleteRule(ruleId);
 
         if (result == 0) {
-            // 如果 service 返回0，说明未找到该ID，主动抛出异常
             throw new IllegalArgumentException("未找到要删除的规则");
         }
 

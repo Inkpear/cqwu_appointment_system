@@ -81,7 +81,7 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional
     public ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue) {
-        log.info("用户 '{}' 正在提交新预约申请...", reservation.getCreatorUserId());
+        log.debug("用户 '{}' 正在提交新预约申请...", reservation.getCreatorUserId());
 
         if (venue == null)
             throw new IllegalArgumentException("指定的场所不存在");
@@ -109,7 +109,7 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setCreateTime(LocalDateTime.now());
 
         reservationMapper.insertSelective(reservation);
-        log.info("新预约申请已提交 (PENDING), Reservation ID: {}", reservation.getId());
+        log.debug("新预约申请已提交 (PENDING), Reservation ID: {}", reservation.getId());
         return reservation;
     }
 
@@ -129,7 +129,7 @@ public class ReservationServiceImpl implements ReservationService {
     public ReservationWithBLOBs cancelReservation(UpdateReservationStatusRequest request) {
         User currentUser = request.getCurrentUser();
         Long reservationId = request.getReservationId();
-        log.info("用户 '{}' 正在尝试取消预约, ID: {}", currentUser.getId(), reservationId);
+        log.debug("用户 '{}' 正在尝试取消预约, ID: {}", currentUser.getId(), reservationId);
 
         ReservationWithBLOBs reservation = findAndCheckReservation(reservationId);
 
@@ -154,7 +154,7 @@ public class ReservationServiceImpl implements ReservationService {
         updateEntity.setStatus(Constants.ReservationStatus.CANCELLED);
         reservationMapper.updateByPrimaryKeySelective(updateEntity);
 
-        log.info("预约 ID: {} 已被成功取消", reservationId);
+        log.debug("预约 ID: {} 已被成功取消", reservationId);
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
@@ -173,7 +173,7 @@ public class ReservationServiceImpl implements ReservationService {
     public ReservationWithBLOBs approveReservation(UpdateReservationStatusRequest request) {
         User adminUser = request.getCurrentUser();
         Long reservationId = request.getReservationId();
-        log.info("管理员 '{}' 正在批准预约, ID: {}", adminUser.getId(), reservationId);
+        log.debug("管理员 '{}' 正在批准预约, ID: {}", adminUser.getId(), reservationId);
 
         ReservationWithBLOBs reservation = findAndCheckPendingReservation(reservationId);
 
@@ -211,7 +211,7 @@ public class ReservationServiceImpl implements ReservationService {
         updateEntity.setApprovalComment(request.getApprovalComment());
         reservationMapper.updateByPrimaryKeySelective(updateEntity);
 
-        log.info("预约 ID: {} 已被批准，并创建了关联的 TimeBlock ID: {}", reservationId, timeBlock.getId());
+        log.debug("预约 ID: {} 已被批准，并创建了关联的 TimeBlock ID: {}", reservationId, timeBlock.getId());
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
@@ -228,7 +228,7 @@ public class ReservationServiceImpl implements ReservationService {
         User adminUser = request.getCurrentUser();
         Long reservationId = request.getReservationId();
         String reason = request.getApprovalComment();
-        log.info("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), reservationId);
+        log.debug("管理员 '{}' 正在拒绝预约, ID: {}", adminUser.getId(), reservationId);
 
         findAndCheckPendingReservation(reservationId);
 
@@ -240,7 +240,7 @@ public class ReservationServiceImpl implements ReservationService {
         updateEntity.setApprovalComment(reason);
         reservationMapper.updateByPrimaryKeySelective(updateEntity);
 
-        log.info("预约 ID: {} 已被拒绝", reservationId);
+        log.debug("预约 ID: {} 已被拒绝", reservationId);
         return reservationMapper.selectByPrimaryKey(reservationId);
     }
 
@@ -324,7 +324,7 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ReservationWithBLOBs approveBySystem(ReservationWithBLOBs reservation) {
-        log.info("【系统】正在自动批准预约 ID: {}", reservation.getId());
+        log.debug("【系统】正在自动批准预约 ID: {}", reservation.getId());
 
         // 创建 TimeBlock 占用物理时间
         TimeBlock timeBlock = new TimeBlock();
@@ -346,7 +346,7 @@ public class ReservationServiceImpl implements ReservationService {
         update.setAppointmentCode(UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         reservationMapper.updateByPrimaryKeySelective(update);
 
-        log.info("【系统】已自动批准预约 ID: {}", reservation.getId());
+        log.debug("【系统】已自动批准预约 ID: {}", reservation.getId());
 
         notificationService.sendNotification(
                 reservation.getCreatorUserId(),
@@ -490,5 +490,23 @@ public class ReservationServiceImpl implements ReservationService {
         if (!isAllowed) {
             throw new PermissionDeniedException("您的用户类型不符合该场所分类的预约要求");
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int cleanReservationsWhereVenueNotExists() {
+        log.debug("正在清理关联场所已被删除的预约记录...");
+
+        ReservationExample example = new ReservationExample();
+        example.createCriteria().andVenueIdNotIn(
+                venueMapper.selectByExample(new VenueExample())
+                        .stream()
+                        .map(Venue::getId)
+                        .toList()
+        );
+
+        int deletedCount = reservationMapper.deleteByExample(example);
+        log.debug("已清理 {} 条无效预约记录", deletedCount);
+        return deletedCount;
     }
 }

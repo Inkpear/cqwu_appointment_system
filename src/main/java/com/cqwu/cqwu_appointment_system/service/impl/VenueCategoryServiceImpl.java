@@ -38,7 +38,7 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
     @Override
     @Transactional
     public int createVenueCategory(VenueCategory venueCategory) {
-        log.info("正在创建新的场所分类: {}", venueCategory.getName());
+        log.debug("正在创建新的场所分类: {}", venueCategory.getName());
         Assert.notNull(venueCategory, "场所分类对象不能为空");
 
         // 确保ID由数据库自动生成
@@ -53,7 +53,7 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
     @Override
     @Transactional
     public int deleteVenueCategory(Long id) {
-        log.info("正在删除场所分类, ID: {}", id);
+        log.debug("正在删除场所分类, ID: {}", id);
         Assert.notNull(id, "要删除的分类ID不能为空");
 
         // 检查是否有场所仍在使用此分类
@@ -68,7 +68,7 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
         ruleExample.createCriteria().andCategoryIdEqualTo(id);
         int deletedRules = venueCategoryRuleMapper.deleteByExample(ruleExample);
         if (deletedRules > 0) {
-            log.info("已级联删除了 {} 条关联的准入规则", deletedRules);
+            log.debug("已级联删除了 {} 条关联的准入规则", deletedRules);
         }
 
         // 执行删除操作
@@ -81,7 +81,7 @@ public class VenueCategoryServiceImpl implements VenueCategoryService {
     @Override
     @Transactional
     public int updateVenueCategory(VenueCategory venueCategory) {
-        log.info("正在更新场所分类, ID: {}", venueCategory.getId());
+        log.debug("正在更新场所分类, ID: {}", venueCategory.getId());
         Assert.notNull(venueCategory, "场所分类对象不能为空");
         Assert.notNull(venueCategory.getId(), "更新时分类ID不能为空");
 

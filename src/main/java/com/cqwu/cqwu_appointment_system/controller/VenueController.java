@@ -116,7 +116,6 @@ public class VenueController {
 
         Venue updatedVenue = venueService.selectVenueById(id);
 
-        // 发送SSE通知，广播给所有用户
         notificationService.sendNotification(
                 "all_users",
                 Constants.SseEvent.VENUE_UPDATED,
@@ -168,12 +167,10 @@ public class VenueController {
             throw new IllegalArgumentException(Constants.BATCH_UPDATE_FAIL_NOT_FOUND);
         }
 
-        // 批量更新后，很难只发送增量变化，一个简单的策略是发送一个通用更新信号
-        // 前端可以接收这个信号后重新拉取列表
         notificationService.sendNotification(
                 Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_UPDATED,
-                "list_updated" // 发送一个简单的字符串信号
+                "list_updated"
         );
 
         return ResponseEntity.ok(AjaxResult.success(String.format("成功更新 %d 条记录", result)));

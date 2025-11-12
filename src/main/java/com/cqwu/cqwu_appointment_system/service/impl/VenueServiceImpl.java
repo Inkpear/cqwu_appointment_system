@@ -71,7 +71,7 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int updateVenue(Venue venue) {
-        log.info("开始更新场所信息, Venue ID: {}", venue.getId());
+        log.debug("开始更新场所信息, Venue ID: {}", venue.getId());
         Assert.notNull(venue, "场所信息不能为空");
         Assert.notNull(venue.getId(), "更新场所时，场所ID不能为空");
 
@@ -88,7 +88,7 @@ public class VenueServiceImpl implements VenueService {
         ValidationUtils.requireStartBeforeEnd(openTime, closeTime, "每日关闭时间必须晚于开放时间");
 
         int result = venueMapper.updateByPrimaryKeySelective(venue);
-        log.info("场所信息更新完成, Venue ID: {}, 影响行数: {}", venue.getId(), result);
+        log.debug("场所信息更新完成, Venue ID: {}, 影响行数: {}", venue.getId(), result);
         return result;
     }
 
@@ -99,7 +99,7 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int insertVenues(List<Venue> venues) {
-        log.info("开始批量插入场所, 数量: {}", venues != null ? venues.size() : 0);
+        log.debug("开始批量插入场所, 数量: {}", venues != null ? venues.size() : 0);
         Assert.notEmpty(venues, "要批量添加的场所列表不能为空");
 
         for (Venue venue : venues) {
@@ -112,7 +112,7 @@ public class VenueServiceImpl implements VenueService {
         }
 
         int result = venueMapper.insertBatch(venues);
-        log.info("成功批量插入 {} 条场所信息", result);
+        log.debug("成功批量插入 {} 条场所信息", result);
         return result;
     }
 
@@ -122,14 +122,14 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int deleteVenueByIds(Long[] ids) {
-        log.info("开始根据ID列表批量删除场所, IDs: {}", Arrays.toString(ids));
+        log.debug("开始根据ID列表批量删除场所, IDs: {}", Arrays.toString(ids));
         Assert.notEmpty(ids, "要删除的ID列表不能为空");
 
         VenueExample example = new VenueExample();
         example.createCriteria().andIdIn(Arrays.asList(ids));
 
         int result = venueMapper.deleteByExample(example);
-        log.info("场所删除操作完成, 影响行数: {}", result);
+        log.debug("场所删除操作完成, 影响行数: {}", result);
         return result;
     }
 
@@ -138,7 +138,7 @@ public class VenueServiceImpl implements VenueService {
      */
     @Override
     public Page<Venue> searchVenues(VenueQuery query) {
-        log.info("开始根据条件分页查询场所, 查询参数: {}", query);
+        log.debug("开始根据条件分页查询场所, 查询参数: {}", query);
 
         Integer page = query.getPage() == null ? Constants.DEFAULT_PAGE : query.getPage();
         Integer size = query.getSize() == null ? Constants.DEFAULT_PAGE_SIZE : query.getSize();
@@ -149,7 +149,7 @@ public class VenueServiceImpl implements VenueService {
         List<Venue> venues = venueMapper.selectByExampleWithBLOBs(example);
 
         PageInfo<Venue> pageInfo = new PageInfo<>(venues);
-        log.info("查询完成, 共找到 {} 条数据", pageInfo.getTotal());
+        log.debug("查询完成, 共找到 {} 条数据", pageInfo.getTotal());
         return new PageImpl<>(pageInfo.getList(), PageRequest.of(page, size), pageInfo.getTotal());
     }
 
@@ -162,7 +162,7 @@ public class VenueServiceImpl implements VenueService {
         if (venuesToUpdate == null || venuesToUpdate.isEmpty()) {
             return 0;
         }
-        log.info("开始批量更新 {} 个场所的实时状态...", venuesToUpdate.size());
+        log.debug("开始批量更新 {} 个场所的实时状态...", venuesToUpdate.size());
         return venueMapper.updateRealtimeStatusBatch(venuesToUpdate);
     }
 
@@ -172,7 +172,7 @@ public class VenueServiceImpl implements VenueService {
     @Override
     @Transactional
     public int updateVenuesBatch(Long[] ids, Venue venueUpdateData) {
-        log.info("管理员开始批量更新 {} 个场所的信息", ids.length);
+        log.debug("管理员开始批量更新 {} 个场所的信息", ids.length);
         Assert.notEmpty(ids, "要更新的ID列表不能为空");
         Assert.notNull(venueUpdateData, "更新数据不能为空");
 
@@ -206,7 +206,7 @@ public class VenueServiceImpl implements VenueService {
         venueUpdateData.setRealtimeStatus(null);
         List<Long> idList = Arrays.asList(ids);
         int result = venueMapper.updateVenuesBatch(venueUpdateData, idList);
-        log.info("批量更新操作完成, 影响行数: {}", result);
+        log.debug("批量更新操作完成, 影响行数: {}", result);
         return result;
     }
 
@@ -273,7 +273,7 @@ public class VenueServiceImpl implements VenueService {
             criteria.andRequiresApprovalEqualTo(query.getRequiresApproval());
         if (!Objects.isNull(query.getCategoryId()))
             criteria.andCategoryIdEqualTo(query.getCategoryId());
-            
+
         if (!Objects.isNull(query.getNameOrderAsc())) {
             if (query.getNameOrderAsc()) {
                 example.setOrderByClause("name ASC");

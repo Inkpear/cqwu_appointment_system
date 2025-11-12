@@ -43,14 +43,31 @@ public class ReservationStatusUpdater {
     /**
      * 主调度方法，每分钟执行一次，按顺序管理预约的各个生命周期阶段。
      */
-    @Scheduled(cron = "0 * * * * ?") // 每分钟执行一次
+    @Scheduled(cron = "0 * * * * ?") 
     @Transactional
     public void manageReservationLifecycle() {
         log.info("【定时任务】开始管理预约生命周期...");
         processAutoApprovals();
         processActiveLifecycle();
         processExpired();
+        cleanTimeBlocksOlderThanNow();
+        cleanReservationsWhereVenueNotExists();
         log.info("【定时任务】预约生命周期管理完成。");
+    }
+
+    private void cleanReservationsWhereVenueNotExists() {
+        int deletedCount = reservationService.cleanReservationsWhereVenueNotExists();
+        if (deletedCount > 0) {
+            log.info("【定时任务】已清理 {} 条关联场所不存在的预约记录。", deletedCount);
+        }
+    }
+
+    private void cleanTimeBlocksOlderThanNow() {
+        LocalDateTime now = LocalDateTime.now();
+        int deletedCount = timeBlockService.cleanTimeBlocksOlderThan(now);
+        if (deletedCount > 0) {
+            log.info("【定时任务】已清理 {} 条过期的 TimeBlock 记录。", deletedCount);
+        }
     }
 
     /**
@@ -126,7 +143,6 @@ public class ReservationStatusUpdater {
     private void processActiveLifecycle() {
         LocalDateTime now = LocalDateTime.now();
 
-        // 将已开始的 CONFIRMED 预约更新为 IN_PROGRESS
         ReservationExample toInProgressExample = new ReservationExample();
         toInProgressExample.createCriteria()
                 .andStatusEqualTo(Constants.ReservationStatus.CONFIRMED)

@@ -41,7 +41,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
     @Override
     @Transactional
     public TimeBlock createTimeBlock(TimeBlock timeBlock) {
-        log.info("正在创建新的时间占用块: venueId={}, time={} - {}",
+        log.debug("正在创建新的时间占用块: venueId={}, time={} - {}",
                 timeBlock.getVenueId(), timeBlock.getStartDatetime(), timeBlock.getEndDatetime());
 
         Assert.notNull(timeBlock, "TimeBlock 对象不能为空");
@@ -59,7 +59,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
         }
 
         timeBlockMapper.insertSelective(timeBlock);
-        log.info("时间占用块创建成功, ID: {}", timeBlock.getId());
+        log.debug("时间占用块创建成功, ID: {}", timeBlock.getId());
         return timeBlock;
     }
 
@@ -69,13 +69,13 @@ public class TimeBlockServiceImpl implements TimeBlockService {
     @Override
     @Transactional
     public void deleteTimeBlockById(Long id) {
-        log.info("正在删除时间占用块, ID: {}", id);
+        log.debug("正在删除时间占用块, ID: {}", id);
         Assert.notNull(id, "要删除的 TimeBlock ID 不能为空");
 
         int affectedRows = timeBlockMapper.deleteByPrimaryKey(id);
 
         if (affectedRows > 0) {
-            log.info("时间占用块 ID: {} 已成功删除", id);
+            log.debug("时间占用块 ID: {} 已成功删除", id);
         } else {
             log.warn("尝试删除一个不存在的时间占用块, ID: {}", id);
         }
@@ -191,7 +191,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
 
         // 批量插入所有新课程
         int insertedCount = timeBlockMapper.insertBatch(courseTimeBlocks);
-        log.info("成功插入 {} 个新课程 TimeBlock。", insertedCount);
+        log.debug("成功插入 {} 个新课程 TimeBlock。", insertedCount);
 
         return insertedCount;
     }
@@ -213,7 +213,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
                 .andBlockTypeEqualTo(Constants.TimeBlockType.COURSE);
 
         int deletedCount = timeBlockMapper.deleteByExample(example);
-        log.info("成功删除了 {} 条课程类 TimeBlock 记录。", deletedCount);
+        log.debug("成功删除了 {} 条课程类 TimeBlock 记录。", deletedCount);
         return deletedCount;
     }
 
@@ -236,7 +236,7 @@ public class TimeBlockServiceImpl implements TimeBlockService {
                 .andStartDatetimeLessThan(end); // 都会被删除
 
         int deletedCount = timeBlockMapper.deleteByExample(example);
-        log.info("成功清空了 {} 条范围内的课程记录。", deletedCount);
+        log.debug("成功清空了 {} 条范围内的课程记录。", deletedCount);
         return deletedCount;
     }
 
@@ -247,18 +247,16 @@ public class TimeBlockServiceImpl implements TimeBlockService {
      * @throws ReservationConflictException 如果发现内部存在时间冲突
      */
     private void validateNoSelfConflicts(List<TimeBlock> blocks) {
-        // 按场地ID分组，然后对每个场地的列表进行排序和冲突检查
+
         blocks.stream()
                 .collect(Collectors.groupingBy(TimeBlock::getVenueId))
                 .forEach((venueId, blocksForVenue) -> {
-                    // 按开始时间排序
                     blocksForVenue.sort(Comparator.comparing(TimeBlock::getStartDatetime));
 
-                    // 迭代检查相邻的块是否有重叠
                     for (int i = 0; i < blocksForVenue.size() - 1; i++) {
                         TimeBlock current = blocksForVenue.get(i);
                         TimeBlock next = blocksForVenue.get(i + 1);
-                        // 如果当前块的结束时间晚于下一个块的开始时间，则存在冲突
+
                         if (current.getEndDatetime().isAfter(next.getStartDatetime())) {
                             log.error("待插入的课程列表中存在内部时间冲突！Venue ID: {}, Conflict: [{} - {}] and [{} - {}]",
                                     venueId, current.getStartDatetime(), current.getEndDatetime(),
@@ -268,5 +266,20 @@ public class TimeBlockServiceImpl implements TimeBlockService {
                         }
                     }
                 });
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int cleanTimeBlocksOlderThan(LocalDateTime cutoffDateTime) {
+        log.debug("开始清理所有早于 {} 的过期 TimeBlock 记录...", cutoffDateTime);
+        Assert.notNull(cutoffDateTime, "截止时间不能为空");
+
+        TimeBlockExample example = new TimeBlockExample();
+        example.createCriteria()
+                .andEndDatetimeLessThan(cutoffDateTime);
+
+        int deletedCount = timeBlockMapper.deleteByExample(example);
+        log.debug("成功清理了 {} 条过期的 TimeBlock 记录。", deletedCount);
+        return deletedCount;
     }
 }
