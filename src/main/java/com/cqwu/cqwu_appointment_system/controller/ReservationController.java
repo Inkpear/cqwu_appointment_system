@@ -232,11 +232,7 @@ public class ReservationController {
 
         String qrCodeBase64 = reservationService.generateQrCodeForReservation(id, user);
 
-        
-        AjaxResult ajaxResult = AjaxResult.success("二维码获取成功");
-        ajaxResult.put("qrCodeBase64", qrCodeBase64);
-
-        return ResponseEntity.ok(ajaxResult);
+        return ResponseEntity.ok(AjaxResult.success("二维码获取成功", qrCodeBase64));
     }
 
     /**
