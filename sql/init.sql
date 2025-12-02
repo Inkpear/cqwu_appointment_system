@@ -1,5 +1,8 @@
 DROP DATABASE IF EXISTS cqwu;
-CREATE DATABASE cqwu CHARACTER set utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE DATABASE cqwu CHARACTER
+set
+  utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE cqwu
 DROP TABLE IF EXISTS `venue`;
@@ -151,3 +154,22 @@ CREATE TABLE
   ) ENGINE = InnoDB CHARACTER
 SET
   = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '前端上报日志表';
+
+-- ----------------------------
+-- Table structure for app_files
+-- ----------------------------
+CREATE TABLE
+  `app_files` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `related_entity_id` BIGINT NULL COMMENT '关联的业务实体ID (venue.id 或 reservations.id)，创建时可为NULL',
+    `entity_type` VARCHAR(50) NOT NULL COMMENT '业务实体类型 (例如: VENUE, RESERVATION)',
+    `object_name` VARCHAR(500) NOT NULL COMMENT '文件在MinIO中的对象名',
+    `file_category` VARCHAR(50) NOT NULL COMMENT '文件分类 (例如: CAROUSEL, ATTACHMENT)',
+    `original_filename` VARCHAR(255) NULL,
+    `display_order` INT DEFAULT 0 COMMENT '显示顺序 (仅用于VENUE的CAROUSEL等)',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_entity` (`related_entity_id`, `entity_type`),
+  ) ENGINE = InnoDB CHARACTER
+SET
+  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '全局文件关联表';

@@ -166,6 +166,17 @@ public class Constants {
     }
 
     /**
+     * 文件操作消息常量
+     */
+    public static class FileMessage {
+        public static final String UPLOAD_SUCCESS = "文件上传成功";
+        public static final String DELETE_SUCCESS = "文件删除成功";
+        public static final String FILE_NOT_FOUND = "文件不存在";
+        public static final String PRESIGNED_URL_GENERATED = "获取上传URL成功";
+        public static final String CONFIRM_UPLOAD_SUCCESS = "确认上传成功";
+    }
+
+    /**
      * 日志相关常量
      */
     public static class LogLevel {

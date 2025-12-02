@@ -65,6 +65,14 @@ public interface VenueService {
     int updateRealtimeStatusBatch(List<Venue> venuesToUpdate);
 
     /**
+     * 将上传的附件关联到场所
+     *
+     * @param venueId   场所ID
+     * @param sessionId 上传会话ID
+     */
+    void attachFilesToVenue(Long venueId, String sessionId);
+
+    /**
      * 批量更新多个场所的通用信息。
      * 使用一份更新数据，应用到所有指定的ID上。
      *

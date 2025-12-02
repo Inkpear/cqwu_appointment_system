@@ -28,7 +28,7 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // 启用方法级别的安全注解，如 @PreAuthorize
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Autowired
@@ -82,8 +82,6 @@ public class SecurityConfig {
                     })
                 )
 
-                // 将自定义的JWT认证过滤器添加到Spring Security的过滤器链中
-                // 它会在处理用户名密码认证的过滤器之前执行
                 .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

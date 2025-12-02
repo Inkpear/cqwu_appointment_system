@@ -32,4 +32,7 @@ public class CreateReservationRequest {
     @Size(max = 65535, message = "预约事由内容过长")
     private String purpose;
 
+    @Size(max = 64, message = "会话ID长度不能超过64个字符")
+    private String attachmentSessionId;
+
 }

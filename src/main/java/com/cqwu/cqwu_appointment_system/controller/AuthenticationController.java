@@ -33,7 +33,7 @@ public class AuthenticationController {
     public static class LoginRequest {
 
         private String userId;
-        private boolean authenticated; // 模拟CAS认证结果
+        private boolean authenticated;
     }
 
     /**
@@ -108,7 +108,7 @@ public class AuthenticationController {
      * @return 操作成功的 ResponseEntity。
      */
     @DeleteMapping("/logout")
-    @PreAuthorize("isAuthenticated()") // 确保只有已认证的用户才能调用登出
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> logout(
         @AuthenticationPrincipal LoginUser loginUser
     ) {

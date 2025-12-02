@@ -54,7 +54,11 @@
         <!-- <table tableName="user" domainObjectName="User">
         </table> -->
 
-        <table tableName="frontend_logs" domainObjectName="FrontendLog">
+        <!-- <table tableName="frontend_logs" domainObjectName="FrontendLog">
+            <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
+        </table> -->
+
+        <table tableName="app_files" domainObjectName="AppFile">
             <generatedKey column="id" sqlStatement="Mysql" identity="true" type="post"/>
         </table>
 

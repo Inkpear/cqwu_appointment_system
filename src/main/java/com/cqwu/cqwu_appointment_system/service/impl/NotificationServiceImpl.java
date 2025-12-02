@@ -137,12 +137,12 @@ public class NotificationServiceImpl implements NotificationService {
             removeEmitter(userId, emitter);
         });
         emitter.onTimeout(() -> {
-            log.warn("用户 '{}' 的SSE连接超时", userId);
+            log.debug("用户 '{}' 的SSE连接超时", userId);
             emitter.complete();
             removeEmitter(userId, emitter);
         });
         emitter.onError(e -> {
-            log.error("用户 '{}' 的SSE连接发生错误", userId, e.getMessage());
+            log.debug("用户 '{}' 的SSE连接发生错误", userId, e.getMessage());
             emitter.complete();
             removeEmitter(userId, emitter);
         });
@@ -184,7 +184,7 @@ public class NotificationServiceImpl implements NotificationService {
                         taskScheduler.schedule(() -> sendToEmitter(t.entry.emitter, t.userId, eventName, data),
                                 Instant.ofEpochMilli(fireAt));
                     } catch (TaskRejectedException e) {
-                        log.warn("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
+                        log.debug("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
                     }
                 }
             } else {
@@ -198,7 +198,7 @@ public class NotificationServiceImpl implements NotificationService {
                             sendToEmitter(t.entry.emitter, t.userId, eventName, data);
                         }
                     } catch (TaskRejectedException e) {
-                        log.warn("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
+                        log.debug("事件 '{}' 未能调度发送给用户 '{}'。", eventName, t.userId);
                     }
                 });
             }
@@ -210,7 +210,7 @@ public class NotificationServiceImpl implements NotificationService {
             if (list != null && !list.isEmpty()) {
                 list.forEach(entry -> sendToEmitter(entry.emitter, userId, eventName, data));
             } else {
-                log.warn("无法找到用户 '{}' 的SSE连接，可能已离线", userId);
+                log.debug("无法找到用户 '{}' 的SSE连接，可能已离线", userId);
             }
         }
     }
@@ -282,7 +282,7 @@ public class NotificationServiceImpl implements NotificationService {
             emitter.send(event);
             log.debug("已向用户 '{}' 发送事件 '{}'", userId, eventName);
         } catch (IOException | IllegalStateException e) {
-            log.error("向用户 '{}' 发送事件 '{}' 失败: {}", userId, eventName, e.getMessage());
+            log.debug("向用户 '{}' 发送事件 '{}' 失败: {}", userId, eventName, e.getMessage());
             emitter.complete();
             removeEmitter(userId, emitter);
         }
@@ -318,7 +318,7 @@ public class NotificationServiceImpl implements NotificationService {
                     + computedDelay;
             return Instant.ofEpochMilli(nextTime);
         });
-        log.debug("SSE 心跳调度已启动：base={}ms, P={}, max={}ms", heartbeatBaseMs, heartbeatMultiplier, heartbeatMaxMs);
+        log.info("SSE 心跳调度已启动：base={}ms, P={}, max={}ms", heartbeatBaseMs, heartbeatMultiplier, heartbeatMaxMs);
     }
 
     private void doHeartbeatOnce() {
@@ -336,7 +336,7 @@ public class NotificationServiceImpl implements NotificationService {
             long costMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
             lastHeartbeatCostMs.set(costMs);
             if (costMs > 0 && !isShuttingDown.get()) {
-                log.debug("SSE 心跳耗时：{} ms（用于计算下一次调度间隔）", costMs);
+                log.info("SSE 心跳耗时：{} ms（用于计算下一次调度间隔）", costMs);
             }
         }
     }
@@ -346,7 +346,7 @@ public class NotificationServiceImpl implements NotificationService {
      */
     @PreDestroy
     public void shutdown() {
-        log.debug("【SSE 服务】正在关闭...");
+        log.info("【SSE 服务】正在关闭...");
 
         isShuttingDown.set(true);
 
@@ -365,7 +365,7 @@ public class NotificationServiceImpl implements NotificationService {
                         try {
                             entry.emitter.complete();
                         } catch (Exception e) {
-                            log.warn("关闭用户 '{}' 的 SSE 连接时出错", userId);
+                            log.debug("关闭用户 '{}' 的 SSE 连接时出错", userId);
                         }
                     }, shutdownExecutor);
                     futures.add(future);
@@ -377,7 +377,7 @@ public class NotificationServiceImpl implements NotificationService {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
             log.debug("【SSE 服务】所有 SSE 连接关闭任务已完成。");
         } catch (Exception e) {
-            log.error("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。");
+            log.debug("【SSE 服务】等待 SSE 连接关闭时发生错误或超时。");
         }
 
         emitters.clear();
@@ -385,15 +385,15 @@ public class NotificationServiceImpl implements NotificationService {
         shutdownExecutor.shutdown();
         try {
             if (!shutdownExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                log.warn("【SSE 服务】关闭执行器超时，强制关闭。");
+                log.debug("【SSE 服务】关闭执行器超时，强制关闭。");
                 shutdownExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
-            log.error("【SSE 服务】关闭执行器时被中断。");
+            log.debug("【SSE 服务】关闭执行器时被中断。");
             shutdownExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
 
-        log.debug("【SSE 服务】服务已完全停止。");
+        log.info("【SSE 服务】服务已完全停止。");
     }
 }

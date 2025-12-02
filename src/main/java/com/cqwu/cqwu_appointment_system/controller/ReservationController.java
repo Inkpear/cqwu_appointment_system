@@ -1,9 +1,12 @@
 package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.common.constant.EntityType;
+import com.cqwu.cqwu_appointment_system.common.constant.FileCategory;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.CreateReservationRequest;
+import com.cqwu.cqwu_appointment_system.domain.dto.FileDetailDto;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
@@ -11,6 +14,7 @@ import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
@@ -47,6 +51,9 @@ public class ReservationController {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private FileService fileService;
+
     /**
      * 用户创建一个新的预约申请。
      *
@@ -77,6 +84,18 @@ public class ReservationController {
                 reservationToCreate,
                 currentUser,
                 venue);
+
+        if (request.getAttachmentSessionId() != null 
+                && !request.getAttachmentSessionId().isEmpty()) {
+            reservationService.attachFilesToReservation(
+                    createdReservation.getId(),
+                    request.getAttachmentSessionId()
+            );
+            log.info("已为预约 {} 关联会话 {} 的附件", 
+                    createdReservation.getId(), 
+                    request.getAttachmentSessionId());
+        }
+
         List<String> sendTarget = new ArrayList<>();
         sendTarget.add(Constants.UserRoleType.ROLE_MONITOR);
 
@@ -210,6 +229,25 @@ public class ReservationController {
             throw new IllegalArgumentException("未查询到该预约码对应的记录");
         }
         return ResponseEntity.ok(AjaxResult.success("查询成功", reservation));
+    }
+
+    /**
+     * 查询预约的附件列表
+     * 
+     * @param id 预约ID
+     * @return 附件列表
+     */
+    @GetMapping("/{id}/attachments")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getReservationAttachments(@PathVariable Long id) {
+        log.info("查询预约附件列表，预约ID: {}", id);
+
+        List<FileDetailDto> files = fileService.getFilesByEntityAndCategorySorted(
+                id,
+                EntityType.RESERVATION,
+                FileCategory.ATTACHMENT);
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, files));
     }
 
     /**

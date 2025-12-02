@@ -1,6 +1,8 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.common.constant.EntityType;
+import com.cqwu.cqwu_appointment_system.common.constant.FileCategory;
 import com.cqwu.cqwu_appointment_system.common.utils.QrCodeUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
@@ -66,6 +68,9 @@ public class ReservationServiceImpl implements ReservationService {
     @Autowired
     private RedisCache redisCache;
 
+    @Autowired
+    private FileServiceImpl fileService;
+
     /**
      * 创建一个新的预约申请。
      * 此方法遵循“竞争”原则，只在数据库中创建一条 PENDING 记录，
@@ -111,6 +116,32 @@ public class ReservationServiceImpl implements ReservationService {
         reservationMapper.insertSelective(reservation);
         log.debug("新预约申请已提交 (PENDING), Reservation ID: {}", reservation.getId());
         return reservation;
+    }
+
+    /**
+     * 批量关联附件到指定预约
+     * 直接从 MinIO 查询会话文件并创建关联记录
+     *
+     * @param reservationId 预约 ID
+     * @param sessionId     会话标识
+     */
+    @Override
+    @Transactional
+    public void attachFilesToReservation(Long reservationId, String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            return;
+        }
+
+        log.info("批量关联附件到预约，预约ID: {}, 会话ID: {}", reservationId, sessionId);
+
+        fileService.linkFilesToEntity(
+            reservationId,
+            sessionId, 
+            EntityType.RESERVATION, 
+            FileCategory.ATTACHMENT
+        );
+
+        log.info("成功关联附件到预约 {}", reservationId);
     }
 
     /**

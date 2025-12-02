@@ -1,6 +1,8 @@
 package com.cqwu.cqwu_appointment_system.controller;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.common.constant.EntityType;
+import com.cqwu.cqwu_appointment_system.common.constant.FileCategory;
 import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.BatchDeleteRequest;
@@ -11,6 +13,7 @@ import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
 import jakarta.validation.Valid;
@@ -42,6 +45,9 @@ public class VenueController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private FileService fileService;
 
     /**
      * 分页搜索场所信息。
@@ -81,7 +87,7 @@ public class VenueController {
      * @param venues 场所信息列表
      * @return 操作结果
      */
-    @PostMapping
+    @PostMapping("/batch")
     @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
     public ResponseEntity<AjaxResult> createVenues(@RequestBody List<@Valid Venue> venues) {
         if (venues == null || venues.isEmpty()) {
@@ -91,6 +97,26 @@ public class VenueController {
         int successCount = venueService.insertVenues(venues);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(AjaxResult.created(String.format("成功添加 %d 个场所", successCount), venues));
+    }
+
+    /**
+     * [管理员] 创建单个场所（支持附件）。
+     *
+     * @param venue 场所信息
+     * @return 操作结果
+     */
+    @PostMapping
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
+    public ResponseEntity<AjaxResult> createVenue(@RequestBody @Valid Venue venue) {
+        log.info("开始创建场所: {}", venue.getName());
+
+        int result = venueService.insertVenues(Arrays.asList(venue));
+        if (result == 0) {
+            throw new RuntimeException(Constants.CREATE_FAIL);
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(AjaxResult.created(Constants.CREATE_SUCCESS, venue));
     }
 
     /**
@@ -105,6 +131,7 @@ public class VenueController {
     public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id,
             @RequestBody @Valid UpdateVenueRequest updateRequest) {
         log.info("开始更新场所信息, ID: {}", id);
+        
         Venue venueToUpdate = new Venue();
         BeanUtils.copyProperties(updateRequest, venueToUpdate);
         venueToUpdate.setId(id);
@@ -122,6 +149,81 @@ public class VenueController {
                 updatedVenue);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.UPDATE_SUCCESS, updatedVenue));
+    }
+
+    /**
+     * [管理员] 为场所关联附件
+     * 
+     * @param id        场所ID
+     * @param sessionId 文件上传会话ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
+    public ResponseEntity<AjaxResult> attachVenueFiles(
+            @PathVariable Long id,
+            @RequestParam String sessionId) {
+        log.info("为场所 {} 关联附件，sessionId: {}", id, sessionId);
+        
+        Venue venue = venueService.selectVenueById(id);
+        if (venue == null) {
+            throw new IllegalArgumentException("场所不存在");
+        }
+        
+        venueService.attachFilesToVenue(id, sessionId);
+        
+        return ResponseEntity.ok(AjaxResult.success("附件关联成功"));
+    }
+
+    /**
+     * [管理员] 为场所关联轮播图
+     * 
+     * @param id        场所ID
+     * @param sessionId 文件上传会话ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/carousel")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
+    public ResponseEntity<AjaxResult> attachVenueCarousel(
+            @PathVariable Long id,
+            @RequestParam String sessionId) {
+        log.info("为场所 {} 关联轮播图，sessionId: {}", id, sessionId);
+        
+        Venue venue = venueService.selectVenueById(id);
+        if (venue == null) {
+            throw new IllegalArgumentException("场所不存在");
+        }
+        
+        fileService.linkFilesToEntity(
+                id,
+                sessionId,
+                EntityType.VENUE,
+                FileCategory.CAROUSEL
+        );
+        
+        return ResponseEntity.ok(AjaxResult.success("轮播图关联成功"));
+    }
+
+    /**
+     * 查询场所的文件列表（轮播图或附件）
+     * 
+     * @param request 查询请求（包含场所ID和文件分类）
+     * @return 文件列表
+     */
+    @GetMapping("/{id}/files")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getVenueFiles(
+            @PathVariable Long id,
+            @RequestParam FileCategory fileCategory) {
+        log.info("查询场所文件列表，场所ID: {}, 文件分类: {}", id, fileCategory);
+
+        List<com.cqwu.cqwu_appointment_system.domain.dto.FileDetailDto> files = 
+                fileService.getFilesByEntityAndCategorySorted(
+                        id,
+                        EntityType.VENUE,
+                        fileCategory);
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, files));
     }
 
     /**
@@ -170,8 +272,7 @@ public class VenueController {
         notificationService.sendNotification(
                 Constants.SseBroadcast.ALL_USERS,
                 Constants.SseEvent.VENUE_UPDATED,
-                "list_updated"
-        );
+                "list_updated");
 
         return ResponseEntity.ok(AjaxResult.success(String.format("成功更新 %d 条记录", result)));
     }

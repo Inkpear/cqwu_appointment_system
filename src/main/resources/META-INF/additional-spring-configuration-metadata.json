@@ -73,5 +73,45 @@
     "name": "logging.sse.broadcast.batch.within-jitter",
     "type": "java.time.Duration",
     "description": "广播批内的轻微抖动上限"
+  },
+  {
+    "name": "file.upload.max-file-size",
+    "type": "java.lang.Long",
+    "description": "文件上传大小限制（字节），默认 20MB"
+  },
+  {
+    "name": "file.upload.presigned-url-expiry-minutes",
+    "type": "java.lang.Integer",
+    "description": "预签名URL有效期（分钟），默认 5 分钟"
+  },
+  {
+    "name": "file.upload.max-attachments-per-reservation",
+    "type": "java.lang.Integer",
+    "description": "单个预约最大附件数量，默认 10 个"
+  },
+  {
+    "name": "file.upload.allowed-extensions",
+    "type": "java.util.List<java.lang.String>",
+    "description": "允许上传的文件扩展名列表（包含点号，如 .jpg）"
+  },
+  {
+    "name": "minio.endpoint",
+    "type": "java.lang.String",
+    "description": "MinIO 服务端点地址，例如: http://localhost:9000"
+  },
+  {
+    "name": "minio.access-key",
+    "type": "java.lang.String",
+    "description": "MinIO 访问密钥（Access Key）"
+  },
+  {
+    "name": "minio.secret-key",
+    "type": "java.lang.String",
+    "description": "MinIO 密钥（Secret Key）"
+  },
+  {
+    "name": "minio.bucket-name",
+    "type": "java.lang.String",
+    "description": "MinIO 默认存储桶名称"
   }
 ]}

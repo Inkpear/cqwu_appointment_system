@@ -12,6 +12,7 @@ import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
+import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
@@ -55,6 +56,9 @@ public class VenueServiceImpl implements VenueService {
     @Autowired
     private ReservationService reservationService;
 
+    @Autowired
+    private FileService fileService;
+
     /**
      * {@inheritDoc}
      */
@@ -82,7 +86,6 @@ public class VenueServiceImpl implements VenueService {
 
         validateCategoryId(venue.getCategoryId());
 
-        // 校验开放与关闭时间的逻辑
         LocalTime openTime = venue.getOpenTime() != null ? venue.getOpenTime() : existingVenue.getOpenTime();
         LocalTime closeTime = venue.getCloseTime() != null ? venue.getCloseTime() : existingVenue.getCloseTime();
         ValidationUtils.requireStartBeforeEnd(openTime, closeTime, "每日关闭时间必须晚于开放时间");
@@ -131,6 +134,26 @@ public class VenueServiceImpl implements VenueService {
         int result = venueMapper.deleteByExample(example);
         log.debug("场所删除操作完成, 影响行数: {}", result);
         return result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public void attachFilesToVenue(Long venueId, String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            log.warn("尝试关联文件但 sessionId 为空");
+            return;
+        }
+        
+        log.info("关联附件到场所，场所ID: {}, sessionId: {}", venueId, sessionId);
+        fileService.linkFilesToEntity(
+                venueId,
+                sessionId,
+                com.cqwu.cqwu_appointment_system.common.constant.EntityType.VENUE,
+                com.cqwu.cqwu_appointment_system.common.constant.FileCategory.ATTACHMENT
+        );
     }
 
     /**

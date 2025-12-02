@@ -29,6 +29,15 @@ public interface ReservationService {
     ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue);
 
     /**
+     * 批量关联附件到指定预约
+     * 将已上传到 MinIO 的附件（通过 sessionId 标识）更新为实际的预约 ID
+     *
+     * @param reservationId 预约 ID
+     * @param sessionId     会话标识（用于匹配临时上传的文件）
+     */
+    void attachFilesToReservation(Long reservationId, String sessionId);
+
+    /**
      * 取消一个已存在的预约申请。
      * 用户可取消自己的预约，管理员有权取消任何预约。
      *
