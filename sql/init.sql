@@ -169,7 +169,7 @@ CREATE TABLE
     `display_order` INT DEFAULT 0 COMMENT '显示顺序 (仅用于VENUE的CAROUSEL等)',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_entity` (`related_entity_id`, `entity_type`),
+    INDEX `idx_entity` (`related_entity_id`, `entity_type`)
   ) ENGINE = InnoDB CHARACTER
 SET
-  = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '全局文件关联表';
+  utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '全局文件关联表';
