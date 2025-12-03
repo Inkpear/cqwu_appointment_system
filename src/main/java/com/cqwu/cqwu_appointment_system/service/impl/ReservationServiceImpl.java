@@ -528,13 +528,24 @@ public class ReservationServiceImpl implements ReservationService {
     public int cleanReservationsWhereVenueNotExists() {
         log.debug("正在清理关联场所已被删除的预约记录...");
 
+        List<Long> existingVenueIds = venueMapper.selectByExample(new VenueExample())
+                .stream()
+                .map(Venue::getId)
+                .toList();
+
+        if (existingVenueIds.isEmpty()) {
+            long totalCount = reservationMapper.countByExample(new ReservationExample());
+            if (totalCount > 0) {
+                int deletedCount = reservationMapper.deleteByExample(new ReservationExample());
+                log.warn("数据库中没有任何场所，已清理所有 {} 条预约记录", deletedCount);
+                return deletedCount;
+            }
+            log.debug("数据库中没有场所也没有预约，无需清理");
+            return 0;
+        }
+
         ReservationExample example = new ReservationExample();
-        example.createCriteria().andVenueIdNotIn(
-                venueMapper.selectByExample(new VenueExample())
-                        .stream()
-                        .map(Venue::getId)
-                        .toList()
-        );
+        example.createCriteria().andVenueIdNotIn(existingVenueIds);
 
         int deletedCount = reservationMapper.deleteByExample(example);
         log.debug("已清理 {} 条无效预约记录", deletedCount);
