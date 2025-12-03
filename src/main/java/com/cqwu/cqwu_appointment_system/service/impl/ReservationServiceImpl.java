@@ -7,6 +7,7 @@ import com.cqwu.cqwu_appointment_system.common.utils.QrCodeUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.uuid.UUID;
+import com.cqwu.cqwu_appointment_system.domain.dto.ReservationDetailDto;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.*;
@@ -14,6 +15,7 @@ import com.cqwu.cqwu_appointment_system.exception.PermissionDeniedException;
 import com.cqwu.cqwu_appointment_system.exception.ReservationConflictException;
 import com.cqwu.cqwu_appointment_system.framework.redis.RedisCache;
 import com.cqwu.cqwu_appointment_system.mapper.ReservationMapper;
+import com.cqwu.cqwu_appointment_system.mapper.ReservationDetailMapper;
 import com.cqwu.cqwu_appointment_system.mapper.TimeBlockMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
@@ -49,6 +51,9 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Autowired
     private ReservationMapper reservationMapper;
+
+    @Autowired
+    private ReservationDetailMapper reservationDetailMapper;
 
     @Autowired
     private TimeBlockMapper timeBlockMapper;
@@ -525,6 +530,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     /** {@inheritDoc} */
     @Override
+    @Transactional
     public int cleanReservationsWhereVenueNotExists() {
         log.debug("正在清理关联场所已被删除的预约记录...");
 
@@ -536,6 +542,16 @@ public class ReservationServiceImpl implements ReservationService {
         if (existingVenueIds.isEmpty()) {
             long totalCount = reservationMapper.countByExample(new ReservationExample());
             if (totalCount > 0) {
+                // 先删除所有预约的扩展信息
+                List<Long> allReservationIds = reservationMapper.selectByExample(new ReservationExample())
+                        .stream()
+                        .map(Reservation::getId)
+                        .toList();
+                if (!allReservationIds.isEmpty()) {
+                    int detailDeleted = reservationDetailMapper.deleteByReservationIds(allReservationIds);
+                    log.debug("已清理 {} 条预约扩展信息", detailDeleted);
+                }
+                
                 int deletedCount = reservationMapper.deleteByExample(new ReservationExample());
                 log.warn("数据库中没有任何场所，已清理所有 {} 条预约记录", deletedCount);
                 return deletedCount;
@@ -547,8 +563,56 @@ public class ReservationServiceImpl implements ReservationService {
         ReservationExample example = new ReservationExample();
         example.createCriteria().andVenueIdNotIn(existingVenueIds);
 
+        List<Long> reservationIdsToDelete = reservationMapper.selectByExample(example)
+                .stream()
+                .map(Reservation::getId)
+                .toList();
+
+        if (!reservationIdsToDelete.isEmpty()) {
+            int detailDeleted = reservationDetailMapper.deleteByReservationIds(reservationIdsToDelete);
+            log.debug("已清理 {} 条预约扩展信息", detailDeleted);
+        }
+
         int deletedCount = reservationMapper.deleteByExample(example);
         log.debug("已清理 {} 条无效预约记录", deletedCount);
         return deletedCount;
+    }
+
+    @Override
+    public List<Reservation> findReservationsByExample(ReservationExample example) {
+        return reservationMapper.selectByExample(example);
+    }
+
+    @Override
+    public List<ReservationDetailDto> getAllReservationsForExport() {
+        log.info("查询所有预约数据（含扩展信息）用于导出");
+        ReservationExample example = new ReservationExample();
+        example.setOrderByClause("create_time DESC");
+        List<ReservationWithBLOBs> reservations = reservationMapper.selectByExampleWithBLOBs(example);
+        
+        // 转换为包含扩展信息的 DTO
+        return reservations.stream()
+                .map(reservation -> {
+                    ReservationDetail detail = reservationDetailMapper.selectByReservationId(reservation.getId());
+                    return ReservationDetailDto.from(reservation, detail);
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    public ReservationDetailDto getReservationDetailById(Long reservationId) {
+        log.info("查询预约详情（含扩展信息），预约ID: {}", reservationId);
+        
+        // 查询基础信息
+        ReservationWithBLOBs reservation = reservationMapper.selectByPrimaryKey(reservationId);
+        if (reservation == null) {
+            return null;
+        }
+        
+        // 查询扩展信息
+        ReservationDetail detail = reservationDetailMapper.selectByReservationId(reservationId);
+        
+        // 组装DTO
+        return ReservationDetailDto.from(reservation, detail);
     }
 }

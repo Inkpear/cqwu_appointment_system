@@ -8,16 +8,19 @@ import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.CreateReservationRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.FileDetailDto;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
+import com.cqwu.cqwu_appointment_system.domain.dto.ReservationDetailDto;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
+import com.cqwu.cqwu_appointment_system.entity.ReservationDetail;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.cqwu.cqwu_appointment_system.service.NotificationService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.VenueService;
+import com.cqwu.cqwu_appointment_system.mapper.ReservationDetailMapper;
 import jakarta.validation.Valid;
 
 import java.util.ArrayList;
@@ -54,6 +57,9 @@ public class ReservationController {
     @Autowired
     private FileService fileService;
 
+    @Autowired
+    private ReservationDetailMapper reservationDetailMapper;
+
     /**
      * 用户创建一个新的预约申请。
      *
@@ -85,14 +91,25 @@ public class ReservationController {
                 currentUser,
                 venue);
 
-        if (request.getAttachmentSessionId() != null 
+        if (request.getParticipants() != null || request.getParticipantCount() != null) {
+            ReservationDetail detail = new ReservationDetail();
+            detail.setReservationId(createdReservation.getId());
+            detail.setParticipants(request.getParticipants());
+            detail.setParticipantCount(request.getParticipantCount());
+            reservationDetailMapper.insert(detail);
+            log.info("已保存预约 {} 的扩展信息：参与人员={}, 人数={}",
+                    createdReservation.getId(),
+                    request.getParticipants(),
+                    request.getParticipantCount());
+        }
+
+        if (request.getAttachmentSessionId() != null
                 && !request.getAttachmentSessionId().isEmpty()) {
             reservationService.attachFilesToReservation(
                     createdReservation.getId(),
-                    request.getAttachmentSessionId()
-            );
-            log.info("已为预约 {} 关联会话 {} 的附件", 
-                    createdReservation.getId(), 
+                    request.getAttachmentSessionId());
+            log.info("已为预约 {} 关联会话 {} 的附件",
+                    createdReservation.getId(),
                     request.getAttachmentSessionId());
         }
 
@@ -111,6 +128,25 @@ public class ReservationController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 AjaxResult.created("预约申请已提交，等待审批", createdReservation));
+    }
+
+    /**
+     * 根据ID查询预约详情
+     *
+     * @param id 预约ID
+     * @return 预约详情
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getReservationById(@PathVariable Long id) {
+        log.info("查询预约详情，预约ID: {}", id);
+
+        ReservationDetailDto reservationDetail = reservationService.getReservationDetailById(id);
+        if (reservationDetail == null) {
+            throw new IllegalArgumentException("预约不存在");
+        }
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, reservationDetail));
     }
 
     /**
@@ -195,14 +231,16 @@ public class ReservationController {
         User currentUser = loginUser.getUser();
         log.info("用户 '{}' 正在尝试取消预约, ID: {}", currentUser.getId(), id);
 
-        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forCancellation(id, currentUser);
+        UpdateReservationStatusRequest request = UpdateReservationStatusRequest.forCancellation(id,
+                currentUser);
         ReservationWithBLOBs cancelledReservation = reservationService.cancelReservation(request);
 
         if (currentUser.getId().equals(cancelledReservation.getCreatorUserId())) {
             notificationService.sendToRole(
                     Constants.UserRoleType.ROLE_MONITOR,
                     Constants.SseEvent.RESERVATION_CANCELLED_BY_USER,
-                    String.format("用户 '%s' 取消了预约 '%s'", currentUser.getName(), cancelledReservation.getTitle()));
+                    String.format("用户 '%s' 取消了预约 '%s'", currentUser.getName(),
+                            cancelledReservation.getTitle()));
         } else {
             notificationService.sendNotification(
                     cancelledReservation.getCreatorUserId(),
@@ -263,7 +301,7 @@ public class ReservationController {
     public ResponseEntity<AjaxResult> getReservationQrCode(
             @PathVariable Long id,
             @AuthenticationPrincipal LoginUser loginUser) {
-        
+
         User user = loginUser.getUser();
 
         log.info("用户 '{}' 正在请求预约 ID '{}' 的二维码", user.getId(), id);
@@ -323,5 +361,20 @@ public class ReservationController {
         entity.setStartDatetime(request.getStartDatetime());
         entity.setEndDatetime(request.getEndDatetime());
         return entity;
+    }
+
+    /**
+     * 导出所有预约的完整数据（仅管理员）
+     * 返回包含扩展信息的 JSON 数据，由前端打包为 Excel 文件
+     * 包括参与人员、参与人数等扩展字段
+     *
+     * @return 所有预约的详情列表（含扩展信息）
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
+    public ResponseEntity<AjaxResult> exportReservations() {
+        log.info("管理员导出所有预约数据");
+        List<ReservationDetailDto> reservations = reservationService.getAllReservationsForExport();
+        return ResponseEntity.ok(AjaxResult.success("导出成功", reservations));
     }
 }

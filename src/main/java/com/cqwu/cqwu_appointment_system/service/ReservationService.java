@@ -4,8 +4,11 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 
+import com.cqwu.cqwu_appointment_system.domain.dto.ReservationDetailDto;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateReservationStatusRequest;
 import com.cqwu.cqwu_appointment_system.domain.query.ReservationQuery;
+import com.cqwu.cqwu_appointment_system.entity.Reservation;
+import com.cqwu.cqwu_appointment_system.entity.ReservationExample;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
@@ -72,6 +75,14 @@ public interface ReservationService {
     ReservationWithBLOBs findReservationById(Long reservationId);
 
     /**
+     * 根据预约ID获取详情（包含扩展信息）
+     *
+     * @param reservationId 预约ID
+     * @return 预约详情DTO（包含参与人员等扩展信息）
+     */
+    ReservationDetailDto getReservationDetailById(Long reservationId);
+
+    /**
      * 根据唯一的预约码获取完整的预约实体信息。
      *
      * @param code 预约成功后生成的唯一凭证码。
@@ -131,4 +142,20 @@ public interface ReservationService {
      * @return 成功删除的预约记录数量。
      */
     int cleanReservationsWhereVenueNotExists();
+
+    /**
+     * 根据条件查询预约列表
+     *
+     * @param example 查询条件
+     * @return 预约列表
+     */
+    List<Reservation> findReservationsByExample(ReservationExample example);
+
+    /**
+     * 获取所有预约的完整信息（用于数据导出）
+     * 返回包含扩展信息的 DTO 列表（包括参与人员等字段）
+     *
+     * @return 所有预约的详情列表
+     */
+    List<ReservationDetailDto> getAllReservationsForExport();
 }

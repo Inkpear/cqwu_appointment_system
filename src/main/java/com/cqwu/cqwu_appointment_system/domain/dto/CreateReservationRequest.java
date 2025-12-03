@@ -35,4 +35,8 @@ public class CreateReservationRequest {
     @Size(max = 64, message = "会话ID长度不能超过64个字符")
     private String attachmentSessionId;
 
+    private String participants;
+
+    private Integer participantCount;
+
 }
