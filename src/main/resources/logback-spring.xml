@@ -6,11 +6,6 @@
     <property name="LOG_PATTERN"
         value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%15.15thread] %-5level %-40.40logger{39} : %msg%n" />
 
-
-    <!-- ===================================================================== -->
-    <!--                            Appender 定义                             -->
-    <!-- ===================================================================== -->
-
     <!-- Appender 1: 控制台输出 (Console) - 只显示 INFO 及以上级别的日志 -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -25,9 +20,15 @@
     <!-- Appender 2: DEBUG 级别日志文件 -->
     <appender name="FILE_DEBUG" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/sys-debug.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/sys-debug.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>15</maxHistory>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 每天或每个文件达到 100MB 时滚动 -->
+            <fileNamePattern>${LOG_PATH}/sys-debug.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 100MB -->
+            <maxFileSize>100MB</maxFileSize>
+            <!-- 保留最近 7 天 -->
+            <maxHistory>7</maxHistory>
+            <!-- 所有归档日志文件的总大小上限 2GB -->
+            <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -43,9 +44,15 @@
     <!-- Appender 3: INFO 级别日志文件 -->
     <appender name="FILE_INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/sys-info.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/sys-info.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 每天或每个文件达到 50MB 时滚动 -->
+            <fileNamePattern>${LOG_PATH}/sys-info.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 50MB -->
+            <maxFileSize>50MB</maxFileSize>
+            <!-- 保留最近 30 天 -->
             <maxHistory>30</maxHistory>
+            <!-- 所有归档日志文件的总大小上限 1GB -->
+            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -61,9 +68,15 @@
     <!-- Appender 4: WARN 级别日志文件 -->
     <appender name="FILE_WARN" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/sys-warn.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/sys-warn.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 每天或每个文件达到 20MB 时滚动 -->
+            <fileNamePattern>${LOG_PATH}/sys-warn.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 20MB -->
+            <maxFileSize>20MB</maxFileSize>
+            <!-- 保留最近 60 天 -->
             <maxHistory>60</maxHistory>
+            <!-- 所有归档日志文件的总大小上限 500MB -->
+            <totalSizeCap>500MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -79,9 +92,15 @@
     <!-- Appender 5: ERROR 级别日志文件 -->
     <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/sys-error.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/sys-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 每天或每个文件达到 20MB 时滚动 -->
+            <fileNamePattern>${LOG_PATH}/sys-error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 20MB -->
+            <maxFileSize>20MB</maxFileSize>
+            <!-- 保留最近 60 天 -->
             <maxHistory>60</maxHistory>
+            <!-- 所有归档日志文件的总大小上限 500MB -->
+            <totalSizeCap>500MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
@@ -97,9 +116,15 @@
     <!-- Appender 6: (可选) 自定义的用户操作日志 -->
     <appender name="SYS_USER" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/sys-user.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/sys-user.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 每天或每个文件达到 50MB 时滚动 -->
+            <fileNamePattern>${LOG_PATH}/sys-user.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 50MB -->
+            <maxFileSize>50MB</maxFileSize>
+            <!-- 保留最近 30 天 -->
             <maxHistory>30</maxHistory>
+            <!-- 所有归档日志文件的总大小上限 500MB -->
+            <totalSizeCap>500MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} - %msg%n</pattern>
