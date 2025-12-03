@@ -35,7 +35,6 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
 
     private final HandlerExceptionResolver resolver;
 
-    @Autowired
     public JwtAuthenticationTokenFilter(@Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver) {
         this.resolver = resolver;
     }
