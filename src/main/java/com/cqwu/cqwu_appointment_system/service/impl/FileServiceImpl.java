@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.management.RuntimeErrorException;
+
 /**
  * 文件服务实现
  * 提供MinIO文件操作的完整流程
@@ -146,7 +148,7 @@ public class FileServiceImpl implements FileService {
             return new PresignedUrlDto(url, objectName);
         } catch (Exception e) {
             log.error("生成MinIO预签名上传URL失败", e);
-            throw new RuntimeException("获取文件上传许可失败，请稍后重试");
+            throw new RuntimeErrorException(new Error("获取文件上传许可失败"));
         }
     }
 

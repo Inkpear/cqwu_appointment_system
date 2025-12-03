@@ -103,7 +103,7 @@ public class GlobalExceptionHandler {
         String paramName = e.getName();
         Object value = e.getValue();
         Class<?> requiredType = e.getRequiredType();
-        
+
         String message;
         if (requiredType != null && requiredType.isEnum()) {
             Object[] enumConstants = requiredType.getEnumConstants();
@@ -114,12 +114,12 @@ public class GlobalExceptionHandler {
                     validValues.append(", ");
                 }
             }
-            message = String.format("参数 '%s' 的值 '%s' 无效。有效值为: %s", 
+            message = String.format("参数 '%s' 的值 '%s' 无效。有效值为: %s",
                     paramName, value, validValues.toString());
         } else {
             message = String.format("参数 '%s' 的值 '%s' 类型不正确", paramName, value);
         }
-        
+
         log.warn("参数类型转换失败: {}", message);
         return AjaxResult.error(HttpStatus.BAD_REQUEST.value(), message);
     }
@@ -294,6 +294,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(AjaxResult.error(HttpStatus.NOT_FOUND.value(), message));
+    }
+
+    /**
+     * 处理运行时异常 (RuntimeException)
+     * 通常是程序逻辑错误或未预期的异常情况
+     */
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public AjaxResult handleRuntimeException(RuntimeException e) {
+        log.error("运行时异常: {}", e.getMessage(), e);
+        return AjaxResult.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "服务器繁忙，请稍后重试");
     }
 
     /**
