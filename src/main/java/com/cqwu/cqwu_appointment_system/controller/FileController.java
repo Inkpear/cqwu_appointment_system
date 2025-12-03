@@ -7,6 +7,7 @@ import com.cqwu.cqwu_appointment_system.domain.AjaxResult;
 import com.cqwu.cqwu_appointment_system.domain.LoginUser;
 import com.cqwu.cqwu_appointment_system.domain.dto.GeneratePresignedUrlRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.PresignedUrlDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.UpdateFileOrderRequest;
 import com.cqwu.cqwu_appointment_system.entity.AppFile;
 import com.cqwu.cqwu_appointment_system.entity.ReservationWithBLOBs;
 import com.cqwu.cqwu_appointment_system.entity.User;
@@ -69,7 +70,7 @@ public class FileController {
             @RequestBody @Valid GeneratePresignedUrlRequest request,
             @AuthenticationPrincipal LoginUser loginUser) {
         log.info("生成文件上传URL，sessionId: {}, 文件名: {}, 实体类型: {}, 文件分类: {}",
-                request.getSessionId(), request.getOriginalFilename(), 
+                request.getSessionId(), request.getOriginalFilename(),
                 request.getEntityType(), request.getFileCategory());
 
         if (EntityType.VENUE.equals(request.getEntityType())
@@ -138,5 +139,59 @@ public class FileController {
         log.info("文件删除成功，fileId: {}", fileId);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.FileMessage.DELETE_SUCCESS));
+    }
+
+    /**
+     * 更新文件显示顺序
+     * 权限：管理员（通常用于场所轮播图排序）或文件所有者
+     *
+     * @param request   更新请求（fileId + displayOrder）
+     * @param loginUser 当前登录用户
+     * @return 操作结果
+     */
+    @PutMapping("/order")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> updateFileDisplayOrder(
+            @RequestBody @Valid UpdateFileOrderRequest request,
+            @AuthenticationPrincipal LoginUser loginUser) {
+        log.info("用户 {} 尝试更新文件顺序，fileId: {}, 新顺序: {}",
+                loginUser.getUser().getId(), request.getFileId(), request.getDisplayOrder());
+
+        User currentUser = loginUser.getUser();
+
+        AppFile appFile = fileService.getFileById(request.getFileId());
+        if (appFile == null) {
+            throw new IllegalArgumentException("文件不存在");
+        }
+
+        boolean isAdmin = Constants.UserRoleType.ROLE_ADMIN.equals(currentUser.getRole())
+                || Constants.UserRoleType.ROLE_ROOT.equals(currentUser.getRole());
+
+        if (EntityType.VENUE.name().equals(appFile.getEntityType())) {
+            if (!isAdmin) {
+                throw new IllegalArgumentException("只有管理员可以调整场所文件顺序");
+            }
+        } else if (EntityType.RESERVATION.name().equals(appFile.getEntityType())) {
+            if (appFile.getRelatedEntityId() != null) {
+                ReservationWithBLOBs reservation = reservationService.findReservationById(
+                        appFile.getRelatedEntityId());
+                if (reservation == null) {
+                    throw new IllegalArgumentException("关联的预约不存在");
+                }
+
+                boolean isOwner = currentUser.getId().equals(reservation.getCreatorUserId());
+                if (!isOwner && !isAdmin) {
+                    throw new IllegalArgumentException("您没有权限调整此文件顺序");
+                }
+            } else if (!isAdmin) {
+                throw new IllegalArgumentException("您没有权限调整此文件顺序");
+            }
+        }
+
+        fileService.updateFileDisplayOrder(request.getFileId(), request.getDisplayOrder());
+        log.info("文件顺序更新成功，fileId: {}, displayOrder: {}",
+                request.getFileId(), request.getDisplayOrder());
+
+        return ResponseEntity.ok(AjaxResult.success("文件顺序已更新"));
     }
 }

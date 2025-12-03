@@ -415,4 +415,30 @@ public class FileServiceImpl implements FileService {
             );
         }
     }
+
+    @Override
+    @Transactional
+    public void updateFileDisplayOrder(Long fileId, Integer displayOrder) {
+        if (fileId == null) {
+            throw new IllegalArgumentException("文件ID不能为空");
+        }
+        if (displayOrder == null || displayOrder < 0) {
+            throw new IllegalArgumentException("显示顺序必须大于等于0");
+        }
+
+        AppFile file = appFileMapper.selectByPrimaryKey(fileId);
+        if (file == null) {
+            throw new IllegalArgumentException("文件不存在");
+        }
+
+        AppFile updateEntity = new AppFile();
+        updateEntity.setId(fileId);
+        updateEntity.setDisplayOrder(displayOrder);
+        
+        appFileMapper.updateByPrimaryKeySelective(updateEntity);
+        
+        log.info("更新文件显示顺序，fileId: {}, 原顺序: {}, 新顺序: {}", 
+                fileId, file.getDisplayOrder(), displayOrder);
+    }
 }
+

@@ -87,4 +87,12 @@ public interface FileService {
             EntityType entityType,
             FileCategory fileCategory
     );
+
+    /**
+     * 更新文件的显示顺序
+     *
+     * @param fileId       文件ID
+     * @param displayOrder 新的显示顺序
+     */
+    void updateFileDisplayOrder(Long fileId, Integer displayOrder);
 }
