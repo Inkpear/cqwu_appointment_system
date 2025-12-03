@@ -1,17 +1,20 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
-import com.cqwu.cqwu_appointment_system.common.utils.StringUtils;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Reservation;
 import com.cqwu.cqwu_appointment_system.entity.TimeBlock;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
+import com.cqwu.cqwu_appointment_system.entity.VenueDetail;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
+import com.cqwu.cqwu_appointment_system.mapper.VenueDetailMapper;
 import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
@@ -26,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -49,6 +53,9 @@ public class VenueServiceImpl implements VenueService {
 
     @Autowired
     private VenueCategoryMapper venueCategoryMapper;
+
+    @Autowired
+    private VenueDetailMapper venueDetailMapper;
 
     @Autowired
     private TimeBlockService timeBlockService;
@@ -109,8 +116,7 @@ public class VenueServiceImpl implements VenueService {
             validateCategoryId(venue.getCategoryId());
             ValidationUtils.requireStartBeforeEnd(venue.getOpenTime(), venue.getCloseTime(), "每日关闭时间必须晚于开放时间");
 
-            venue.setId(null); // 确保ID由数据库生成
-            // 设置为null，让数据库使用默认值'UNKNOWN'
+            venue.setId(null);
             venue.setRealtimeStatus(null);
         }
 
@@ -127,6 +133,9 @@ public class VenueServiceImpl implements VenueService {
     public int deleteVenueByIds(Long[] ids) {
         log.debug("开始根据ID列表批量删除场所, IDs: {}", Arrays.toString(ids));
         Assert.notEmpty(ids, "要删除的ID列表不能为空");
+
+        int detailDeleted = venueDetailMapper.deleteByVenueIds(ids);
+        log.debug("已删除 {} 条场所扩展信息", detailDeleted);
 
         VenueExample example = new VenueExample();
         example.createCriteria().andIdIn(Arrays.asList(ids));
@@ -146,14 +155,13 @@ public class VenueServiceImpl implements VenueService {
             log.warn("尝试关联文件但 sessionId 为空");
             return;
         }
-        
+
         log.info("关联附件到场所，场所ID: {}, sessionId: {}", venueId, sessionId);
         fileService.linkFilesToEntity(
                 venueId,
                 sessionId,
                 com.cqwu.cqwu_appointment_system.common.constant.EntityType.VENUE,
-                com.cqwu.cqwu_appointment_system.common.constant.FileCategory.ATTACHMENT
-        );
+                com.cqwu.cqwu_appointment_system.common.constant.FileCategory.ATTACHMENT);
     }
 
     /**
@@ -318,5 +326,206 @@ public class VenueServiceImpl implements VenueService {
         if (categoryId != null && venueCategoryMapper.selectByPrimaryKey(categoryId) == null) {
             throw new IllegalArgumentException("操作失败，ID为 " + categoryId + " 的场所分类不存在");
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public VenueStatisticsDto getVenueStatistics(Long venueId) {
+        log.debug("获取场所统计信息, venueId: {}", venueId);
+
+        Venue venue = venueMapper.selectByPrimaryKey(venueId);
+        if (venue == null) {
+            throw new IllegalArgumentException("场所不存在");
+        }
+
+        // 查询该场所的所有预约
+        com.cqwu.cqwu_appointment_system.entity.ReservationExample example = new com.cqwu.cqwu_appointment_system.entity.ReservationExample();
+        example.createCriteria().andVenueIdEqualTo(venueId);
+        List<Reservation> allReservations = reservationService.findReservationsByExample(example);
+
+        // 计算各项统计指标
+        long totalReservations = allReservations.size();
+
+        long successfulReservations = allReservations.stream()
+                .filter(r -> Constants.ReservationStatus.CONFIRMED.equals(r.getStatus())
+                        || Constants.ReservationStatus.COMPLETED.equals(r.getStatus()))
+                .count();
+
+        long pendingReservations = allReservations.stream()
+                .filter(r -> Constants.ReservationStatus.PENDING.equals(r.getStatus()))
+                .count();
+
+        long ongoingReservations = allReservations.stream()
+                .filter(r -> Constants.ReservationStatus.CONFIRMED.equals(r.getStatus()))
+                .count();
+
+        long completedReservations = allReservations.stream()
+                .filter(r -> Constants.ReservationStatus.COMPLETED.equals(r.getStatus()))
+                .count();
+
+        long totalParticipants = totalReservations;
+
+        long uniqueUsers = allReservations.stream()
+                .map(Reservation::getCreatorUserId)
+                .distinct()
+                .count();
+
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        long recentReservations = allReservations.stream()
+                .filter(r -> r.getCreateTime() != null && r.getCreateTime().isAfter(thirtyDaysAgo))
+                .count();
+
+        long totalApplied = allReservations.stream()
+                .filter(r -> !Constants.ReservationStatus.CANCELLED.equals(r.getStatus()))
+                .count();
+        double approvalRate = totalApplied > 0
+                ? (double) successfulReservations / totalApplied * 100
+                : 0.0;
+
+        double averageDurationMinutes = allReservations.stream()
+                .filter(r -> r.getStartDatetime() != null && r.getEndDatetime() != null)
+                .mapToLong(r -> java.time.Duration.between(r.getStartDatetime(), r.getEndDatetime()).toMinutes())
+                .average()
+                .orElse(0.0);
+
+        LocalDateTime lastReservationTime = allReservations.stream()
+                .map(Reservation::getCreateTime)
+                .filter(Objects::nonNull)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+
+        int popularityScore = calculatePopularityScore(
+                recentReservations,
+                uniqueUsers,
+                approvalRate,
+                totalReservations);
+
+        double utilizationRate = calculateUtilizationRate(
+                allReservations,
+                thirtyDaysAgo,
+                venue);
+
+        return VenueStatisticsDto.builder()
+                .venueId(venueId)
+                .venueName(venue.getName())
+                .totalReservations(totalReservations)
+                .successfulReservations(successfulReservations)
+                .pendingReservations(pendingReservations)
+                .ongoingReservations(ongoingReservations)
+                .completedReservations(completedReservations)
+                .totalParticipants(totalParticipants)
+                .uniqueUsers(uniqueUsers)
+                .recentReservations(recentReservations)
+                .approvalRate(Math.round(approvalRate * 100.0) / 100.0)
+                .averageDurationMinutes(Math.round(averageDurationMinutes * 100.0) / 100.0)
+                .lastReservationTime(lastReservationTime)
+                .popularityScore(popularityScore)
+                .utilizationRate(Math.round(utilizationRate * 100.0) / 100.0)
+                .build();
+    }
+
+    /**
+     * 计算热门度评分（0-100）
+     * 综合考虑最近预约数、独立用户数、通过率、总预约数
+     */
+    private int calculatePopularityScore(long recentReservations, long uniqueUsers,
+            double approvalRate, long totalReservations) {
+        // 最近预约数得分（0-40分）
+        double recentScore = Math.min(recentReservations / 10.0 * 40, 40);
+
+        // 独立用户数得分（0-30分）
+        double userScore = Math.min(uniqueUsers / 20.0 * 30, 30);
+
+        // 通过率得分（0-20分）
+        double approvalScore = approvalRate / 100.0 * 20;
+
+        // 总预约数得分（0-10分）
+        double totalScore = Math.min(totalReservations / 50.0 * 10, 10);
+
+        return (int) Math.round(recentScore + userScore + approvalScore + totalScore);
+    }
+
+    /**
+     * 计算使用率（最近30天）
+     * 使用率 = 已预约时长 / 理论可用时长
+     */
+    private double calculateUtilizationRate(List<Reservation> allReservations,
+            LocalDateTime thirtyDaysAgo,
+            Venue venue) {
+        // 计算最近30天成功的预约总时长（分钟）
+        long bookedMinutes = allReservations.stream()
+                .filter(r -> r.getCreateTime() != null && r.getCreateTime().isAfter(thirtyDaysAgo))
+                .filter(r -> Constants.ReservationStatus.CONFIRMED.equals(r.getStatus())
+                        || Constants.ReservationStatus.COMPLETED.equals(r.getStatus()))
+                .filter(r -> r.getStartDatetime() != null && r.getEndDatetime() != null)
+                .mapToLong(r -> java.time.Duration.between(r.getStartDatetime(), r.getEndDatetime()).toMinutes())
+                .sum();
+
+        // 计算理论可用时长（30天 * 每天开放时长）
+        if (venue.getOpenTime() == null || venue.getCloseTime() == null) {
+            return 0.0;
+        }
+
+        long dailyMinutes = java.time.Duration.between(
+                venue.getOpenTime().atDate(LocalDateTime.now().toLocalDate()),
+                venue.getCloseTime().atDate(LocalDateTime.now().toLocalDate())).toMinutes();
+
+        long totalAvailableMinutes = dailyMinutes * 30;
+
+        if (totalAvailableMinutes == 0) {
+            return 0.0;
+        }
+
+        return (double) bookedMinutes / totalAvailableMinutes * 100;
+    }
+
+    @Override
+    public List<VenueStatisticsDto> getAllVenuesStatistics() {
+        log.info("查询所有场所的统计信息");
+
+        VenueExample example = new VenueExample();
+        List<Venue> allVenues = venueMapper.selectByExample(example);
+
+        return allVenues.stream()
+                .map(venue -> getVenueStatistics(venue.getId()))
+                .toList();
+    }
+
+    @Override
+    public VenueDetailDto getVenueDetailById(Long id) {
+        log.info("查询场所详情（含扩展信息），场所ID: {}", id);
+
+        // 查询基础信息
+        Venue venue = venueMapper.selectByPrimaryKey(id);
+        if (venue == null) {
+            return null;
+        }
+
+        // 查询扩展信息
+        VenueDetail detail = venueDetailMapper.selectByVenueId(id);
+
+        // 组装DTO
+        return VenueDetailDto.from(venue, detail);
+    }
+
+    @Override
+    @Transactional
+    public void updateVenueDescription(Long venueId, String description) {
+        log.info("更新场所描述，场所ID: {}, 描述长度: {}", venueId,
+                description != null ? description.length() : 0);
+
+        Venue venue = venueMapper.selectByPrimaryKey(venueId);
+        if (venue == null) {
+            throw new IllegalArgumentException("场所不存在");
+        }
+
+        VenueDetail detail = new VenueDetail();
+        detail.setVenueId(venueId);
+        detail.setDescription(description);
+
+        venueDetailMapper.insertOrUpdate(detail);
+        log.info("场所描述更新成功");
     }
 }

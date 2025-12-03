@@ -10,6 +10,8 @@ import com.cqwu.cqwu_appointment_system.domain.dto.BatchUpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
@@ -74,11 +76,11 @@ public class VenueController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getVenueById(@PathVariable Long id) {
         log.info("查询场所详情, ID: {}", id);
-        Venue venue = venueService.selectVenueById(id);
-        if (venue == null) {
+        VenueDetailDto venueDetail = venueService.getVenueDetailById(id);
+        if (venueDetail == null) {
             throw new IllegalArgumentException(Constants.QUERY_NOT_FOUND);
         }
-        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venue));
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venueDetail));
     }
 
     /**
@@ -100,7 +102,7 @@ public class VenueController {
     }
 
     /**
-     * [管理员] 创建单个场所（支持附件）。
+     * [管理员] 创建单个场所。
      *
      * @param venue 场所信息
      * @return 操作结果
@@ -131,7 +133,7 @@ public class VenueController {
     public ResponseEntity<AjaxResult> updateVenue(@PathVariable Long id,
             @RequestBody @Valid UpdateVenueRequest updateRequest) {
         log.info("开始更新场所信息, ID: {}", id);
-        
+
         Venue venueToUpdate = new Venue();
         BeanUtils.copyProperties(updateRequest, venueToUpdate);
         venueToUpdate.setId(id);
@@ -141,7 +143,12 @@ public class VenueController {
             throw new IllegalArgumentException(Constants.UPDATE_FAIL_NOT_FOUND);
         }
 
-        Venue updatedVenue = venueService.selectVenueById(id);
+        if (updateRequest.getDescription() != null) {
+            venueService.updateVenueDescription(id, updateRequest.getDescription());
+            log.info("已更新场所描述");
+        }
+
+        VenueDetailDto updatedVenue = venueService.getVenueDetailById(id);
 
         notificationService.sendNotification(
                 "all_users",
@@ -164,14 +171,14 @@ public class VenueController {
             @PathVariable Long id,
             @RequestParam String sessionId) {
         log.info("为场所 {} 关联附件，sessionId: {}", id, sessionId);
-        
+
         Venue venue = venueService.selectVenueById(id);
         if (venue == null) {
             throw new IllegalArgumentException("场所不存在");
         }
-        
+
         venueService.attachFilesToVenue(id, sessionId);
-        
+
         return ResponseEntity.ok(AjaxResult.success("附件关联成功"));
     }
 
@@ -188,19 +195,18 @@ public class VenueController {
             @PathVariable Long id,
             @RequestParam String sessionId) {
         log.info("为场所 {} 关联轮播图，sessionId: {}", id, sessionId);
-        
+
         Venue venue = venueService.selectVenueById(id);
         if (venue == null) {
             throw new IllegalArgumentException("场所不存在");
         }
-        
+
         fileService.linkFilesToEntity(
                 id,
                 sessionId,
                 EntityType.VENUE,
-                FileCategory.CAROUSEL
-        );
-        
+                FileCategory.CAROUSEL);
+
         return ResponseEntity.ok(AjaxResult.success("轮播图关联成功"));
     }
 
@@ -217,8 +223,8 @@ public class VenueController {
             @RequestParam FileCategory fileCategory) {
         log.info("查询场所文件列表，场所ID: {}, 文件分类: {}", id, fileCategory);
 
-        List<com.cqwu.cqwu_appointment_system.domain.dto.FileDetailDto> files = 
-                fileService.getFilesByEntityAndCategorySorted(
+        List<com.cqwu.cqwu_appointment_system.domain.dto.FileDetailDto> files = fileService
+                .getFilesByEntityAndCategorySorted(
                         id,
                         EntityType.VENUE,
                         fileCategory);
@@ -300,5 +306,39 @@ public class VenueController {
         List<CalendarEventDTO> calendarEvents = venueService.getVenueScheduleForUser(venueId, start, end, currentUser);
 
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, calendarEvents));
+    }
+
+    /**
+     * 获取指定场所的统计信息（预约数量、预约人次、热门程度等）。
+     *
+     * @param id 场所ID
+     * @return 场所统计信息
+     */
+    @GetMapping("/{id}/statistics")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getVenueStatistics(@PathVariable Long id) {
+        log.info("查询场所统计信息, 场所ID: {}", id);
+
+        Venue venue = venueService.selectVenueById(id);
+        if (venue == null) {
+            throw new IllegalArgumentException(Constants.QUERY_NOT_FOUND);
+        }
+
+        VenueStatisticsDto statistics = venueService.getVenueStatistics(id);
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, statistics));
+    }
+
+    /**
+     * 导出所有场所的统计信息（仅管理员）
+     * 返回JSON数据，由前端打包为Excel文件
+     *
+     * @return 所有场所的统计信息列表
+     */
+    @GetMapping("/export/statistics")
+    @PreAuthorize("hasRole(@securityConstants.ROLE_ADMIN) or hasRole(@securityConstants.ROLE_ROOT)")
+    public ResponseEntity<AjaxResult> exportVenuesStatistics() {
+        log.info("管理员导出所有场所统计信息");
+        List<VenueStatisticsDto> statistics = venueService.getAllVenuesStatistics();
+        return ResponseEntity.ok(AjaxResult.success("导出成功", statistics));
     }
 }

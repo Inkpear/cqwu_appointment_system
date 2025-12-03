@@ -42,4 +42,6 @@ public class UpdateVenueRequest {
 
     @PositiveOrZero(message = "最长预约时长必须为非负数")
     private Integer maxBookingDurationMinutes;
+    
+    private String description;
 }

@@ -1,6 +1,8 @@
 package com.cqwu.cqwu_appointment_system.service;
 
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
@@ -93,4 +95,36 @@ public interface VenueService {
      */
     List<CalendarEventDTO> getVenueScheduleForUser(Long venueId, LocalDateTime start, LocalDateTime end,
             User currentUser);
+
+    /**
+     * 获取场所统计信息
+     * 用于展示场所的热门程度和使用情况
+     *
+     * @param venueId 场所ID
+     * @return 场所统计信息
+     */
+    VenueStatisticsDto getVenueStatistics(Long venueId);
+
+    /**
+     * 获取所有场所的统计信息（用于数据导出）
+     *
+     * @return 所有场所的统计信息列表
+     */
+    List<VenueStatisticsDto> getAllVenuesStatistics();
+
+    /**
+     * 根据ID查询场所详情（包含扩展信息）
+     *
+     * @param id 场所ID
+     * @return 场所详情DTO（包含描述等扩展信息）
+     */
+    VenueDetailDto getVenueDetailById(Long id);
+
+    /**
+     * 更新场所扩展信息（描述）
+     *
+     * @param venueId 场所ID
+     * @param description 场所描述（支持Markdown）
+     */
+    void updateVenueDescription(Long venueId, String description);
 }
