@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalTime;
 
 /**
- * 场所详情DTO（包含扩展信息）
+ * 场所详情DTO
  */
 @Data
 public class VenueDetailDto {
@@ -23,7 +23,6 @@ public class VenueDetailDto {
     private LocalTime openTime;
     private LocalTime closeTime;
     private Boolean requiresApproval;
-    private Integer maxBookingDurationMinutes;
     
     /**
      * 场所描述
@@ -47,7 +46,6 @@ public class VenueDetailDto {
         dto.setOpenTime(venue.getOpenTime());
         dto.setCloseTime(venue.getCloseTime());
         dto.setRequiresApproval(venue.getRequiresApproval());
-        dto.setMaxBookingDurationMinutes(venue.getMaxBookingDurationMinutes());
         
         if (detail != null) {
             dto.setDescription(detail.getDescription());

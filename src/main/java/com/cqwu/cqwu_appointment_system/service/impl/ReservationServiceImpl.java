@@ -106,13 +106,6 @@ public class ReservationServiceImpl implements ReservationService {
         ValidationUtils.requireStartBeforeEnd(reservation.getStartDatetime(), reservation.getEndDatetime(),
                 "结束时间必须晚于开始时间");
 
-        if (venue.getMaxBookingDurationMinutes() != null) {
-            long duration = Duration.between(reservation.getStartDatetime(), reservation.getEndDatetime()).toMinutes();
-            if (duration > venue.getMaxBookingDurationMinutes()) {
-                throw new IllegalArgumentException("预约时长超过了该场所允许的最大限制");
-            }
-        }
-
         checkUserHasNoOverlappingReservations(reservation);
 
         reservation.setStatus(Constants.ReservationStatus.PENDING);
@@ -497,8 +490,8 @@ public class ReservationServiceImpl implements ReservationService {
                         Constants.ReservationStatus.PENDING,
                         Constants.ReservationStatus.CONFIRMED,
                         Constants.ReservationStatus.IN_PROGRESS))
-                .andEndDatetimeGreaterThan(reservation.getStartDatetime()) // 已有申请的结束时间 > 新申请的开始时间
-                .andStartDatetimeLessThan(reservation.getEndDatetime()); // 已有申请的开始时间 < 新申请的结束时间
+                .andEndDatetimeGreaterThan(reservation.getStartDatetime()) 
+                .andStartDatetimeLessThan(reservation.getEndDatetime()); 
 
         long conflictingCount = reservationMapper.countByExample(example);
 
@@ -542,7 +535,6 @@ public class ReservationServiceImpl implements ReservationService {
         if (existingVenueIds.isEmpty()) {
             long totalCount = reservationMapper.countByExample(new ReservationExample());
             if (totalCount > 0) {
-                // 先删除所有预约的扩展信息
                 List<Long> allReservationIds = reservationMapper.selectByExample(new ReservationExample())
                         .stream()
                         .map(Reservation::getId)
