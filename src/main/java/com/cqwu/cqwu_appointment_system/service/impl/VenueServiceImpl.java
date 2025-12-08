@@ -291,8 +291,12 @@ public class VenueServiceImpl implements VenueService {
         VenueExample example = new VenueExample();
         VenueExample.Criteria criteria = example.createCriteria();
 
-        if (StringUtils.hasText(query.getName()))
+        if (StringUtils.hasText(query.getName())) {
             criteria.andNameLike("%" + query.getName() + "%");
+            if (!StringUtils.hasText(query.getLocation())) {
+                example.or().andLocationLike("%" + query.getName() + "%");
+            }
+        }
         if (StringUtils.hasText(query.getBaseStatus()))
             criteria.andBaseStatusEqualTo(query.getBaseStatus());
         if (StringUtils.hasText(query.getRealtimeStatus()))
@@ -454,7 +458,6 @@ public class VenueServiceImpl implements VenueService {
     private double calculateUtilizationRate(List<Reservation> allReservations,
             LocalDateTime thirtyDaysAgo,
             Venue venue) {
-        // 计算最近30天成功的预约总时长（分钟）
         long bookedMinutes = allReservations.stream()
                 .filter(r -> r.getCreateTime() != null && r.getCreateTime().isAfter(thirtyDaysAgo))
                 .filter(r -> Constants.ReservationStatus.CONFIRMED.equals(r.getStatus())
@@ -463,7 +466,6 @@ public class VenueServiceImpl implements VenueService {
                 .mapToLong(r -> java.time.Duration.between(r.getStartDatetime(), r.getEndDatetime()).toMinutes())
                 .sum();
 
-        // 计算理论可用时长（30天 * 每天开放时长）
         if (venue.getOpenTime() == null || venue.getCloseTime() == null) {
             return 0.0;
         }
