@@ -110,7 +110,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         reservation.setStatus(Constants.ReservationStatus.PENDING);
         reservation.setCreateTime(LocalDateTime.now());
-
+ 
         reservationMapper.insertSelective(reservation);
         log.debug("新预约申请已提交 (PENDING), Reservation ID: {}", reservation.getId());
         return reservation;

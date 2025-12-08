@@ -219,11 +219,9 @@ public class FileServiceImpl implements FileService {
             return;
         }
 
-        // 4. 为每个文件创建数据库记录
         int successCount = 0;
         for (String objectName : uploadedObjects) {
             try {
-                // 提取原始文件名（从对象名末尾获取）
                 String originalFilename = extractOriginalFilename(objectName);
                 
                 AppFile appFile = new AppFile();
@@ -357,19 +355,20 @@ public class FileServiceImpl implements FileService {
                             .method(Method.GET)
                             .bucket(minioProperties.getBucketName())
                             .object(objectName)
-                            .expiry(7, TimeUnit.DAYS)  // 7天有效期
+                            .expiry(7, TimeUnit.DAYS)
                             .build()
             );
         } catch (Exception e) {
             log.error("生成下载URL失败, objectName: {}", objectName, e);
-            // 返回基础URL作为降级方案
             return minioProperties.getEndpoint() + "/" + minioProperties.getBucketName() + "/" + objectName;
         }
     }
 
     /**
      * 构建MinIO对象名（使用 sessionId 而非 relatedEntityId）
-     * 路径结构: {entity_type}/temp_{sessionId}/{category}/{uuid}{.ext}
+     * 路径结构: {entity_type}/temp_{sessionId}/{category}/{uuid}_{originalFilename}
+     * 
+     * 例如: venue/temp_abc123/attachment/550e8400-e29b-41d4-a716-446655440000_document.pdf
      */
     private String buildObjectName(
             String originalFilename,
@@ -377,16 +376,21 @@ public class FileServiceImpl implements FileService {
             EntityType entityType,
             FileCategory fileCategory
     ) {
-        String fileExtension = "";
-        if (StringUtils.hasText(originalFilename) && originalFilename.contains(".")) {
-            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        if (!StringUtils.hasText(originalFilename)) {
+            throw new IllegalArgumentException("文件名不能为空");
         }
-        return String.format("%s/temp_%s/%s/%s%s",
+        
+        // 生成唯一的 UUID
+        String uuid = UUID.randomUUID().toString(true);
+        
+        // 构建对象名：uuid_originalFilename 格式
+        // 这样可以保留原始文件名，同时确保唯一性
+        return String.format("%s/temp_%s/%s/%s_%s",
                 entityType.name().toLowerCase(),
                 sessionId,
                 fileCategory.name().toLowerCase(),
-                UUID.randomUUID().toString(true),
-                fileExtension);
+                uuid,
+                originalFilename);
     }
 
     /**

@@ -1,6 +1,8 @@
 package com.cqwu.cqwu_appointment_system.service.impl;
 
 import com.cqwu.cqwu_appointment_system.common.constant.Constants;
+import com.cqwu.cqwu_appointment_system.common.constant.EntityType;
+import com.cqwu.cqwu_appointment_system.common.constant.FileCategory;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
@@ -160,8 +162,8 @@ public class VenueServiceImpl implements VenueService {
         fileService.linkFilesToEntity(
                 venueId,
                 sessionId,
-                com.cqwu.cqwu_appointment_system.common.constant.EntityType.VENUE,
-                com.cqwu.cqwu_appointment_system.common.constant.FileCategory.ATTACHMENT);
+                EntityType.VENUE,
+                FileCategory.ATTACHMENT);
     }
 
     /**
@@ -340,12 +342,10 @@ public class VenueServiceImpl implements VenueService {
             throw new IllegalArgumentException("场所不存在");
         }
 
-        // 查询该场所的所有预约
         com.cqwu.cqwu_appointment_system.entity.ReservationExample example = new com.cqwu.cqwu_appointment_system.entity.ReservationExample();
         example.createCriteria().andVenueIdEqualTo(venueId);
         List<Reservation> allReservations = reservationService.findReservationsByExample(example);
 
-        // 计算各项统计指标
         long totalReservations = allReservations.size();
 
         long successfulReservations = allReservations.stream()
