@@ -21,13 +21,13 @@ public class ReservationDetail {
     private Long reservationId;
 
     /**
-     * 参与人员名单（前端传入的字符串，信任机制）
+     * 参与人员名单
      * 例如："张三,李四,王五" 或 JSON 格式等
      */
     private String participants;
 
     /**
-     * 参与人数（前端传入，信任机制）
+     * 参与人数
      */
     private Integer participantCount;
 
