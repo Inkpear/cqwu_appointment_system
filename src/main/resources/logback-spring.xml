@@ -140,6 +140,7 @@
     <logger name="org.springframework" level="WARN" />
     <logger name="org.apache.tomcat" level="WARN" />
     <logger name="com.zaxxer.hikari" level="WARN" />
+    <logger name="oshi" level="WARN" />
 
     <root level="DEBUG">
         <appender-ref ref="CONSOLE" />
