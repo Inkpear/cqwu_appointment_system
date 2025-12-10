@@ -6,6 +6,7 @@ import com.cqwu.cqwu_appointment_system.common.constant.FileCategory;
 import com.cqwu.cqwu_appointment_system.common.utils.ValidationUtils;
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueName;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.Reservation;
@@ -540,5 +541,11 @@ public class VenueServiceImpl implements VenueService {
         }
 
         return venueMapper.selectByIds(ids);
+    }
+
+    @Override
+    public List<VenueName> getAllVenueNames() {
+        log.info("查询所有场所的ID和名称");
+        return venueMapper.getAllVenueNames();
     }
 }

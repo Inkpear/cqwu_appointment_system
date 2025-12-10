@@ -1,5 +1,6 @@
 package com.cqwu.cqwu_appointment_system.mapper;
 
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueName;
 import com.cqwu.cqwu_appointment_system.entity.Venue;
 import com.cqwu.cqwu_appointment_system.entity.VenueExample;
 import java.util.List;
@@ -153,4 +154,11 @@ public interface VenueMapper {
      * @return 包含ID和名称的场所列表
      */
     List<Venue> selectByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 查询所有场所的ID和名称。
+     * 
+     * @return 包含ID和名称的场所列表
+     */
+    List<VenueName> getAllVenueNames();
 }

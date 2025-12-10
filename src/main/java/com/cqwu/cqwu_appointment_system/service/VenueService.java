@@ -2,6 +2,7 @@ package com.cqwu.cqwu_appointment_system.service;
 
 import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueName;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
@@ -135,4 +136,11 @@ public interface VenueService {
      * @return 包含ID和名称的场所列表
      */
     List<Venue> getVenuesByIds(List<Long> ids);
+
+    /**
+     * 获取所有场所的ID和名称
+     *
+     * @return 包含ID和名称的场所列表
+     */
+    List<VenueName> getAllVenueNames();
 }

@@ -11,6 +11,7 @@ import com.cqwu.cqwu_appointment_system.domain.dto.CalendarEventDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.PageDTO;
 import com.cqwu.cqwu_appointment_system.domain.dto.UpdateVenueRequest;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueDetailDto;
+import com.cqwu.cqwu_appointment_system.domain.dto.VenueName;
 import com.cqwu.cqwu_appointment_system.domain.dto.VenueStatisticsDto;
 import com.cqwu.cqwu_appointment_system.domain.query.VenueQuery;
 import com.cqwu.cqwu_appointment_system.entity.User;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.method.P;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +37,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * @description 负责处理所有与场所资源相关的API请求。
@@ -92,10 +96,24 @@ public class VenueController {
      * @return 包含ID和名称的场所列表
      */
     @PostMapping("/query-by-ids")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AjaxResult> getVenuesByIds(@RequestBody List<Long> ids) {
         log.info("根据ID列表获取场所, IDs: {}", ids);
         List<Venue> venues = venueService.getVenuesByIds(ids);
 
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venues));
+    }
+
+    /**
+     * 获取所有场所的ID和名称
+     *
+     * @return 包含ID和名称的场所列表
+     */
+    @GetMapping("/all-names")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AjaxResult> getAllVenues() {
+        log.info("查询所有场所名称");
+        List<VenueName> venues = venueService.getAllVenueNames();
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venues));
     }
 
