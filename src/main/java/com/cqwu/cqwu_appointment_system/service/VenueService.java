@@ -127,4 +127,12 @@ public interface VenueService {
      * @param description 场所描述（支持Markdown）
      */
     void updateVenueDescription(Long venueId, String description);
+
+    /**
+     * 根据ID列表获取场所的ID和名称
+     *
+     * @param ids 场所ID列表
+     * @return 包含ID和名称的场所列表
+     */
+    List<Venue> getVenuesByIds(List<Long> ids);
 }

@@ -530,4 +530,15 @@ public class VenueServiceImpl implements VenueService {
         venueDetailMapper.insertOrUpdate(detail);
         log.info("场所描述更新成功");
     }
+
+    @Override
+    public List<Venue> getVenuesByIds(List<Long> ids) {
+        log.info("根据ID列表查询场所名称和ID，IDs: {}", ids);
+
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return venueMapper.selectByIds(ids);
+    }
 }

@@ -33,6 +33,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 /**
  * @description 负责处理所有与场所资源相关的API请求。
@@ -81,6 +83,20 @@ public class VenueController {
             throw new IllegalArgumentException(Constants.QUERY_NOT_FOUND);
         }
         return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venueDetail));
+    }
+
+    /**
+     * 根据ID列表获取场所的ID和名称
+     *
+     * @param ids 场所ID列表
+     * @return 包含ID和名称的场所列表
+     */
+    @PostMapping("/query-by-ids")
+    public ResponseEntity<AjaxResult> getVenuesByIds(@RequestBody List<Long> ids) {
+        log.info("根据ID列表获取场所, IDs: {}", ids);
+        List<Venue> venues = venueService.getVenuesByIds(ids);
+
+        return ResponseEntity.ok(AjaxResult.success(Constants.QUERY_SUCCESS, venues));
     }
 
     /**

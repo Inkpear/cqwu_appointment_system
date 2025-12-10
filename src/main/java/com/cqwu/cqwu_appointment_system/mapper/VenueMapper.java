@@ -145,4 +145,12 @@ public interface VenueMapper {
      * @return 影响的行数
      */
     int updateVenuesBatch(@Param("venue") Venue venueUpdateData, @Param("ids") List<Long> ids);
+
+    /**
+     * 根据ID列表查询场所和ID。
+     * 
+     * @param ids 场所ID列表
+     * @return 包含ID和名称的场所列表
+     */
+    List<Venue> selectByIds(@Param("ids") List<Long> ids);
 }
