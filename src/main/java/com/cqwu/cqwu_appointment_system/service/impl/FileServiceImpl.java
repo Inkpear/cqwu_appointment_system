@@ -64,22 +64,21 @@ public class FileServiceImpl implements FileService {
         if (EntityType.RESERVATION.equals(entityType) && FileCategory.CAROUSEL.equals(fileCategory)) {
             throw new IllegalArgumentException("预约不支持轮播图类型的文件");
         }
-        
+
         String sessionId = UUID.randomUUID().toString(true);
         String redisKey = SESSION_KEY_PREFIX + sessionId;
-        
+
         UploadSessionDto sessionDto = new UploadSessionDto(
                 sessionId,
                 entityType,
                 fileCategory,
                 0,
-                System.currentTimeMillis()
-        );
-        
+                System.currentTimeMillis());
+
         redisCache.setCacheObject(redisKey, sessionDto, SESSION_EXPIRY_MINUTES, TimeUnit.MINUTES);
-        log.info("创建文件上传会话，sessionId: {}, 实体类型: {}, 文件分类: {}, 过期时间: {}分钟", 
+        log.info("创建文件上传会话，sessionId: {}, 实体类型: {}, 文件分类: {}, 过期时间: {}分钟",
                 sessionId, entityType, fileCategory, SESSION_EXPIRY_MINUTES);
-        
+
         return sessionId;
     }
 
@@ -90,15 +89,15 @@ public class FileServiceImpl implements FileService {
         if (!StringUtils.hasText(sessionId)) {
             throw new IllegalArgumentException("会话 ID 不能为空");
         }
-        
+
         String redisKey = SESSION_KEY_PREFIX + sessionId;
         UploadSessionDto sessionDto = redisCache.getCacheObject(redisKey);
-        
+
         if (sessionDto == null) {
             log.warn("无效或过期的会话 ID: {}", sessionId);
             throw new IllegalArgumentException("会话已过期或不存在，请重新获取上传会话");
         }
-        
+
         return sessionDto;
     }
 
@@ -107,29 +106,33 @@ public class FileServiceImpl implements FileService {
             String originalFilename,
             String sessionId,
             EntityType entityType,
-            FileCategory fileCategory
-    ) {
+            FileCategory fileCategory) {
+
+        if (originalFilename.contains("-")) {
+            throw new IllegalArgumentException("文件名不能包含特殊字符 '-'");
+        }
+
         UploadSessionDto sessionDto = validateSession(sessionId);
-        
+
         if (!sessionDto.getEntityType().equals(entityType)) {
             throw new IllegalArgumentException(
-                    String.format("实体类型不匹配：会话类型为 %s，请求类型为 %s", 
+                    String.format("实体类型不匹配：会话类型为 %s，请求类型为 %s",
                             sessionDto.getEntityType(), entityType));
         }
         if (!sessionDto.getFileCategory().equals(fileCategory)) {
             throw new IllegalArgumentException(
-                    String.format("文件分类不匹配：会话分类为 %s，请求分类为 %s", 
+                    String.format("文件分类不匹配：会话分类为 %s，请求分类为 %s",
                             sessionDto.getFileCategory(), fileCategory));
         }
-        
+
         if (EntityType.RESERVATION.equals(entityType) && FileCategory.ATTACHMENT.equals(fileCategory)) {
             if (sessionDto.getUploadedCount() >= fileUploadProperties.getMaxAttachmentsPerReservation()) {
                 throw new IllegalArgumentException(
-                        String.format("预约附件数量超出限制，最多允许 %d 个文件", 
+                        String.format("预约附件数量超出限制，最多允许 %d 个文件",
                                 fileUploadProperties.getMaxAttachmentsPerReservation()));
             }
         }
-        
+
         validateFileType(originalFilename);
 
         String objectName = buildObjectName(originalFilename, sessionId, entityType, fileCategory);
@@ -141,9 +144,8 @@ public class FileServiceImpl implements FileService {
                             .bucket(minioProperties.getBucketName())
                             .object(objectName)
                             .expiry(fileUploadProperties.getPresignedUrlExpiryMinutes(), TimeUnit.MINUTES)
-                            .build()
-            );
-            log.info("为会话 {} 生成预签名上传URL，实体类型: {}, 对象名: {}", 
+                            .build());
+            log.info("为会话 {} 生成预签名上传URL，实体类型: {}, 对象名: {}",
                     sessionId, entityType, objectName);
             return new PresignedUrlDto(url, objectName);
         } catch (Exception e) {
@@ -166,8 +168,7 @@ public class FileServiceImpl implements FileService {
                     RemoveObjectArgs.builder()
                             .bucket(minioProperties.getBucketName())
                             .object(appFile.getObjectName())
-                            .build()
-            );
+                            .build());
             log.info("成功从MinIO删除文件: {}", appFile.getObjectName());
         } catch (Exception e) {
             log.error("从MinIO删除文件失败, objectName: {}", appFile.getObjectName(), e);
@@ -196,24 +197,24 @@ public class FileServiceImpl implements FileService {
         }
 
         UploadSessionDto sessionDto = validateSession(sessionId);
-        
+
         if (!sessionDto.getEntityType().equals(entityType)) {
             throw new IllegalArgumentException(
-                    String.format("实体类型不匹配：会话类型为 %s，请求类型为 %s", 
+                    String.format("实体类型不匹配：会话类型为 %s，请求类型为 %s",
                             sessionDto.getEntityType(), entityType));
         }
         if (!sessionDto.getFileCategory().equals(fileCategory)) {
             throw new IllegalArgumentException(
-                    String.format("文件分类不匹配：会话分类为 %s，请求分类为 %s", 
+                    String.format("文件分类不匹配：会话分类为 %s，请求分类为 %s",
                             sessionDto.getFileCategory(), fileCategory));
         }
 
-        log.info("关联文件到实体，实体ID: {}, 会话ID: {}, 实体类型: {}, 文件分类: {}", 
+        log.info("关联文件到实体，实体ID: {}, 会话ID: {}, 实体类型: {}, 文件分类: {}",
                 entityId, sessionId, entityType, fileCategory);
 
         String prefix = buildTempPrefix(sessionId, entityType, fileCategory);
         List<String> uploadedObjects = listObjectsWithPrefix(prefix);
-        
+
         if (uploadedObjects.isEmpty()) {
             log.warn("会话 {} 未找到任何已上传的文件（prefix: {}）", sessionId, prefix);
             return;
@@ -223,7 +224,7 @@ public class FileServiceImpl implements FileService {
         for (String objectName : uploadedObjects) {
             try {
                 String originalFilename = extractOriginalFilename(objectName);
-                
+
                 AppFile appFile = new AppFile();
                 appFile.setRelatedEntityId(entityId);
                 appFile.setEntityType(entityType.name());
@@ -231,18 +232,18 @@ public class FileServiceImpl implements FileService {
                 appFile.setObjectName(objectName);
                 appFile.setOriginalFilename(originalFilename);
                 appFile.setDisplayOrder(successCount);
-                
+
                 appFileMapper.insertSelective(appFile);
                 successCount++;
-                
+
                 log.debug("已创建文件记录并关联实体，fileId: {}, objectName: {}", appFile.getId(), objectName);
             } catch (Exception e) {
                 log.error("关联文件失败，objectName: {}", objectName, e);
             }
         }
-        
+
         log.info("成功关联 {} 个文件到实体 {}（类型: {}）", successCount, entityId, entityType);
-        
+
         // 5. 清理 Redis session（已完成关联，不再需要）
         String redisKey = SESSION_KEY_PREFIX + sessionId;
         redisCache.deleteObject(redisKey);
@@ -267,9 +268,8 @@ public class FileServiceImpl implements FileService {
                     ListObjectsArgs.builder()
                             .bucket(minioProperties.getBucketName())
                             .prefix(prefix)
-                            .build()
-            );
-            
+                            .build());
+
             for (Result<Item> result : results) {
                 Item item = result.get();
                 objectNames.add(item.objectName());
@@ -287,8 +287,8 @@ public class FileServiceImpl implements FileService {
      */
     private String extractOriginalFilename(String objectName) {
         String filename = objectName.substring(objectName.lastIndexOf('/') + 1);
-        // 移除 UUID 前缀（格式：uuid_originalname）
-        int underscoreIndex = filename.indexOf('_');
+        // 移除 UUID 前缀（格式：uuid-originalname）
+        int underscoreIndex = filename.indexOf('-');
         if (underscoreIndex > 0 && underscoreIndex < filename.length() - 1) {
             return filename.substring(underscoreIndex + 1);
         }
@@ -315,8 +315,7 @@ public class FileServiceImpl implements FileService {
     public List<FileDetailDto> getFilesByEntityAndCategorySorted(
             Long relatedEntityId,
             EntityType entityType,
-            FileCategory fileCategory
-    ) {
+            FileCategory fileCategory) {
         AppFileExample example = new AppFileExample();
         example.setOrderByClause("display_order ASC");
         example.createCriteria()
@@ -327,7 +326,6 @@ public class FileServiceImpl implements FileService {
         List<AppFile> appFiles = appFileMapper.selectByExample(example);
         return convertToDetailDtoList(appFiles);
     }
-
 
     /**
      * 将AppFile实体列表转换为DTO列表
@@ -356,8 +354,7 @@ public class FileServiceImpl implements FileService {
                             .bucket(minioProperties.getBucketName())
                             .object(objectName)
                             .expiry(7, TimeUnit.DAYS)
-                            .build()
-            );
+                            .build());
         } catch (Exception e) {
             log.error("生成下载URL失败, objectName: {}", objectName, e);
             return minioProperties.getEndpoint() + "/" + minioProperties.getBucketName() + "/" + objectName;
@@ -368,24 +365,24 @@ public class FileServiceImpl implements FileService {
      * 构建MinIO对象名（使用 sessionId 而非 relatedEntityId）
      * 路径结构: {entity_type}/temp_{sessionId}/{category}/{uuid}_{originalFilename}
      * 
-     * 例如: venue/temp_abc123/attachment/550e8400-e29b-41d4-a716-446655440000_document.pdf
+     * 例如:
+     * venue/temp_abc123/attachment/550e8400-e29b-41d4-a716-446655440000_document.pdf
      */
     private String buildObjectName(
             String originalFilename,
             String sessionId,
             EntityType entityType,
-            FileCategory fileCategory
-    ) {
+            FileCategory fileCategory) {
         if (!StringUtils.hasText(originalFilename)) {
             throw new IllegalArgumentException("文件名不能为空");
         }
-        
+
         // 生成唯一的 UUID
         String uuid = UUID.randomUUID().toString(true);
-        
+
         // 构建对象名：uuid_originalFilename 格式
         // 这样可以保留原始文件名，同时确保唯一性
-        return String.format("%s/temp_%s/%s/%s_%s",
+        return String.format("%s/temp_%s/%s/%s-%s",
                 entityType.name().toLowerCase(),
                 sessionId,
                 fileCategory.name().toLowerCase(),
@@ -407,7 +404,7 @@ public class FileServiceImpl implements FileService {
         }
 
         List<String> allowedExtensions = fileUploadProperties.getAllowedExtensions();
-        
+
         if (allowedExtensions == null || allowedExtensions.isEmpty()) {
             log.warn("文件扩展名白名单未配置，将拒绝所有上传");
             throw new IllegalArgumentException("文件上传功能未正确配置，请联系管理员");
@@ -415,10 +412,9 @@ public class FileServiceImpl implements FileService {
 
         if (!allowedExtensions.contains(fileExtension)) {
             throw new IllegalArgumentException(
-                    String.format("不支持的文件类型: %s。允许的类型: %s", 
-                            fileExtension, 
-                            String.join(", ", allowedExtensions))
-            );
+                    String.format("不支持的文件类型: %s。允许的类型: %s",
+                            fileExtension,
+                            String.join(", ", allowedExtensions)));
         }
     }
 
@@ -440,11 +436,10 @@ public class FileServiceImpl implements FileService {
         AppFile updateEntity = new AppFile();
         updateEntity.setId(fileId);
         updateEntity.setDisplayOrder(displayOrder);
-        
+
         appFileMapper.updateByPrimaryKeySelective(updateEntity);
-        
-        log.info("更新文件显示顺序，fileId: {}, 原顺序: {}, 新顺序: {}", 
+
+        log.info("更新文件显示顺序，fileId: {}, 原顺序: {}, 新顺序: {}",
                 fileId, file.getDisplayOrder(), displayOrder);
     }
 }
-
