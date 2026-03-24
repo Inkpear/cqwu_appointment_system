@@ -1,1 +1,0 @@
-cat ./sql/init.sql | docker exec -i mysql-cqwu-appointment mysql -u root -p'admin123'
