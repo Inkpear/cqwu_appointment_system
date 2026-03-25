@@ -98,6 +98,15 @@ public class UserServiceImpl implements UserService {
         log.debug("开始插入新用户, User ID: {}", user.getId());
         Assert.notNull(user, "User对象不能为空");
         Assert.hasText(user.getId(), "用户ID不能为空");
+
+        LocalDateTime now = LocalDateTime.now();
+        if (user.getCreateTime() == null) {
+            user.setCreateTime(now);
+        }
+        if (user.getUpdateTime() == null) {
+            user.setUpdateTime(now);
+        }
+
         return userMapper.insertSelective(user);
     }
 

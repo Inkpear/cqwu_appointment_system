@@ -7,11 +7,13 @@ services:
       - --default-authentication-plugin=mysql_native_password
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-cqwu}
       MYSQL_USER: ${DB_USERNAME:-cqwu}
       MYSQL_PASSWORD: ${DB_PASSWORD:-change_me}
+      TZ: ${APP_TIME_ZONE:-Asia/Shanghai}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -98,6 +100,7 @@ services:
       DB_HOST: ${DB_HOST:-mysql}
       DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME:-cqwu}
+      DB_SERVER_TIMEZONE: ${DB_SERVER_TIMEZONE:-Asia/Shanghai}
       DB_USERNAME: ${DB_USERNAME:-cqwu}
       DB_PASSWORD: ${DB_PASSWORD:-change_me}
       REDIS_HOST: ${REDIS_HOST:-redis}
@@ -111,6 +114,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:-PLEASE_REPLACE_WITH_A_STRONG_SECRET_BASE64}
       JWT_ACCESS_TOKEN_EXPIRE_TIME: ${JWT_ACCESS_TOKEN_EXPIRE_TIME:-2H}
       JWT_REFRESH_TOKEN_EXPIRE_TIME: ${JWT_REFRESH_TOKEN_EXPIRE_TIME:-7D}
+      CAS_ENABLED: ${CAS_ENABLED:-true}
+      CAS_SERVER_URL_PREFIX: ${CAS_SERVER_URL_PREFIX:-https://authserver.cqwu.edu.cn/authserver}
+      CAS_SERVER_LOGIN_URL: ${CAS_SERVER_LOGIN_URL:-https://authserver.cqwu.edu.cn/authserver/login}
+      CAS_SERVER_LOGOUT_URL: ${CAS_SERVER_LOGOUT_URL:-https://authserver.cqwu.edu.cn/authserver/logout}
+      CAS_CLIENT_SERVICE_URL: ${CAS_CLIENT_SERVICE_URL:-http://192.168.123.69/api/auth/cas/callback}
+      CAS_FRONTEND_REDIRECT_URL: ${CAS_FRONTEND_REDIRECT_URL:-http://192.168.123.69/login/callback}
       APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Shanghai}
       TZ: ${APP_TIME_ZONE:-Asia/Shanghai}
       JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
