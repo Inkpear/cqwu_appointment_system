@@ -20,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * @description 负责处理用户认证相关的所有API请求，包括登录、刷新令牌和退出登录。
@@ -166,7 +167,12 @@ public class AuthenticationController {
      */
     @PostMapping("/cas/exchange")
     public ResponseEntity<AjaxResult> casExchange(
-            @RequestBody CasCodeExchangeRequest request) {
+            @RequestBody CasCodeExchangeRequest request,
+            HttpServletRequest httpRequest) {
+        log.info("[CORS-DEBUG] /api/auth/cas/exchange origin={}, referer={}, ua={}",
+                httpRequest.getHeader("Origin"),
+                httpRequest.getHeader("Referer"),
+                httpRequest.getHeader("User-Agent"));
         Map<String, String> tokens = casAuthenticationService.exchangeCodeForTokens(request.getCode());
         return ResponseEntity.ok(AjaxResult.success(Constants.LOGIN_SUCCESS, tokens));
     }

@@ -42,6 +42,9 @@ public class SecurityConfig {
     @Value("${security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:80,http://127.0.0.1:80}")
     private String allowedOrigins;
 
+    @Value("${security.cors.allowed-origin-patterns:}")
+    private String allowedOriginPatterns;
+
     @Value("${security.cors.allowed-methods:GET,POST,PUT,DELETE,PATCH,OPTIONS}")
     private String allowedMethods;
 
@@ -112,7 +115,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(splitCsv(allowedOrigins));
+        List<String> patterns = splitCsv(allowedOriginPatterns);
+        if (!patterns.isEmpty()) {
+            configuration.setAllowedOriginPatterns(patterns);
+        } else {
+            configuration.setAllowedOrigins(splitCsv(allowedOrigins));
+        }
         configuration.setAllowedMethods(splitCsv(allowedMethods));
         configuration.setAllowedHeaders(splitCsv(allowedHeaders));
         configuration.setExposedHeaders(splitCsv(exposedHeaders));

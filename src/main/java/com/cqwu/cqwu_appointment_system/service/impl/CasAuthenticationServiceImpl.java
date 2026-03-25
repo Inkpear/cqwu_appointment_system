@@ -74,9 +74,11 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
 
         String callbackServiceUrl = buildCallbackServiceUrl();
         CasUserPrincipal principal = casClientService.validateServiceTicket(ticket, callbackServiceUrl);
-        // log.info("[CAS-DEBUG] validated userId={}, attributes={}", principal.getUserId(), principal.getAttributes());
+        log.info("[CAS-DEBUG] validated userId={}, attributes={}", principal.getUserId(), principal.getAttributes());
 
-        User user = userService.loginOrSyncUser(principal.getUserId());
+        String resolvedUserId = resolveCasUserId(principal);
+
+        User user = userService.loginOrSyncUser(resolvedUserId);
         syncBasicProfile(user, principal.getAttributes());
 
         String code = UUID.randomUUID().toString().replace("-", "");
@@ -198,6 +200,19 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
                 .toUriString();
     }
 
+    private String resolveCasUserId(CasUserPrincipal principal) {
+        if (principal == null) {
+            throw new IllegalArgumentException("CAS principal 不能为空");
+        }
+
+        Map<String, String> attrs = principal.getAttributes();
+        String attributeUserId = firstNonBlank(
+                attrs == null ? null : attrs.get("uid"),
+                attrs == null ? null : attrs.get("eduPersonStudentID"));
+
+        return firstNonBlank(attributeUserId, principal.getUserId());
+    }
+
     private void syncBasicProfile(User currentUser, Map<String, String> attributes) {
         if (currentUser == null || attributes == null || attributes.isEmpty()) {
             return;
@@ -206,17 +221,19 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
         User update = new User();
         update.setId(currentUser.getId());
 
-        String casName = attributes.get("cn");
+        String casName = firstNonBlank(attributes.get("cn"), attributes.get("userName"), attributes.get("user_name"));
         if (casName != null && !casName.equals(currentUser.getName())) {
             update.setName(casName);
         }
 
-        String college = attributes.get("eduPersonOrgDN");
+        String college = firstNonBlank(attributes.get("eduPersonOrgDN"), attributes.get("college"),
+                attributes.get("department"));
         if (college != null && !college.equals(currentUser.getCollege())) {
             update.setCollege(college);
         }
 
-        String major = firstNonBlank(attributes.get("major"), attributes.get("profession"));
+        String major = firstNonBlank(attributes.get("eduPersonPrimaryOrgUnitDN"), attributes.get("major"),
+                attributes.get("profession"));
         if (major != null && !major.equals(currentUser.getMajor())) {
             update.setMajor(major);
         }
