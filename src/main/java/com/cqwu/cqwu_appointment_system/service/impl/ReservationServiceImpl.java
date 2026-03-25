@@ -21,6 +21,7 @@ import com.cqwu.cqwu_appointment_system.mapper.VenueCategoryRuleMapper;
 import com.cqwu.cqwu_appointment_system.mapper.VenueMapper;
 import com.cqwu.cqwu_appointment_system.service.ReservationService;
 import com.cqwu.cqwu_appointment_system.service.TimeBlockService;
+import com.cqwu.cqwu_appointment_system.service.FileService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 
@@ -74,7 +75,7 @@ public class ReservationServiceImpl implements ReservationService {
     private RedisCache redisCache;
 
     @Autowired
-    private FileServiceImpl fileService;
+    private FileService fileService;
 
     /**
      * 创建一个新的预约申请。
@@ -110,10 +111,39 @@ public class ReservationServiceImpl implements ReservationService {
 
         reservation.setStatus(Constants.ReservationStatus.PENDING);
         reservation.setCreateTime(LocalDateTime.now());
- 
+
         reservationMapper.insertSelective(reservation);
         log.debug("新预约申请已提交 (PENDING), Reservation ID: {}", reservation.getId());
         return reservation;
+    }
+
+    @Override
+    @Transactional
+    public ReservationWithBLOBs createReservationWithDetails(ReservationWithBLOBs reservation, User currentUser,
+            Venue venue,
+            String participants, Integer participantCount, String attachmentSessionId) {
+        ReservationWithBLOBs createdReservation = createReservation(reservation, currentUser, venue);
+
+        if (participants != null || participantCount != null) {
+            ReservationDetail detail = new ReservationDetail();
+            detail.setReservationId(createdReservation.getId());
+            detail.setParticipants(participants);
+            detail.setParticipantCount(participantCount);
+            reservationDetailMapper.insert(detail);
+            log.info("已保存预约 {} 的扩展信息：参与人员={}, 人数={}",
+                    createdReservation.getId(), participants, participantCount);
+        }
+
+        if (StringUtils.isNotBlank(attachmentSessionId)) {
+            fileService.linkFilesToEntity(
+                    createdReservation.getId(),
+                    attachmentSessionId,
+                    EntityType.RESERVATION,
+                    FileCategory.ATTACHMENT);
+            log.info("已为预约 {} 关联会话 {} 的附件", createdReservation.getId(), attachmentSessionId);
+        }
+
+        return createdReservation;
     }
 
     /**
@@ -133,11 +163,10 @@ public class ReservationServiceImpl implements ReservationService {
         log.info("批量关联附件到预约，预约ID: {}, 会话ID: {}", reservationId, sessionId);
 
         fileService.linkFilesToEntity(
-            reservationId,
-            sessionId, 
-            EntityType.RESERVATION, 
-            FileCategory.ATTACHMENT
-        );
+                reservationId,
+                sessionId,
+                EntityType.RESERVATION,
+                FileCategory.ATTACHMENT);
 
         log.info("成功关联附件到预约 {}", reservationId);
     }
@@ -422,15 +451,13 @@ public class ReservationServiceImpl implements ReservationService {
             return cachedQrCode;
         }
 
-
         ReservationWithBLOBs reservation = reservationMapper.selectByPrimaryKey(reservationId);
         if (reservation == null) {
             throw new EntityNotFoundException("预约不存在, ID: " + reservationId);
         }
 
-
         boolean isAdmin = Arrays.asList(Constants.UserRoleType.ROLE_ADMIN, Constants.UserRoleType.ROLE_ROOT)
-                                .contains(currentUser.getRole());
+                .contains(currentUser.getRole());
 
         if (!reservation.getCreatorUserId().equals(currentUser.getId()) && !isAdmin) {
             throw new AccessDeniedException("您无权访问此预约的二维码");
@@ -446,7 +473,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         long ttl = Duration.between(LocalDateTime.now(), reservation.getEndDatetime()).toMinutes() + 60;
         if (ttl > 0) {
-           redisCache.setCacheObject(cacheKey, qrCodeBase64, ttl, TimeUnit.MINUTES);
+            redisCache.setCacheObject(cacheKey, qrCodeBase64, ttl, TimeUnit.MINUTES);
         }
 
         return qrCodeBase64;
@@ -490,8 +517,8 @@ public class ReservationServiceImpl implements ReservationService {
                         Constants.ReservationStatus.PENDING,
                         Constants.ReservationStatus.CONFIRMED,
                         Constants.ReservationStatus.IN_PROGRESS))
-                .andEndDatetimeGreaterThan(reservation.getStartDatetime()) 
-                .andStartDatetimeLessThan(reservation.getEndDatetime()); 
+                .andEndDatetimeGreaterThan(reservation.getStartDatetime())
+                .andStartDatetimeLessThan(reservation.getEndDatetime());
 
         long conflictingCount = reservationMapper.countByExample(example);
 
@@ -540,10 +567,14 @@ public class ReservationServiceImpl implements ReservationService {
                         .map(Reservation::getId)
                         .toList();
                 if (!allReservationIds.isEmpty()) {
+                    int fileDeleted = fileService.deleteFileRecordsByEntityIds(EntityType.RESERVATION,
+                            allReservationIds);
+                    log.debug("已清理 {} 条预约文件记录", fileDeleted);
+
                     int detailDeleted = reservationDetailMapper.deleteByReservationIds(allReservationIds);
                     log.debug("已清理 {} 条预约扩展信息", detailDeleted);
                 }
-                
+
                 int deletedCount = reservationMapper.deleteByExample(new ReservationExample());
                 log.warn("数据库中没有任何场所，已清理所有 {} 条预约记录", deletedCount);
                 return deletedCount;
@@ -561,6 +592,9 @@ public class ReservationServiceImpl implements ReservationService {
                 .toList();
 
         if (!reservationIdsToDelete.isEmpty()) {
+            int fileDeleted = fileService.deleteFileRecordsByEntityIds(EntityType.RESERVATION, reservationIdsToDelete);
+            log.debug("已清理 {} 条预约文件记录", fileDeleted);
+
             int detailDeleted = reservationDetailMapper.deleteByReservationIds(reservationIdsToDelete);
             log.debug("已清理 {} 条预约扩展信息", detailDeleted);
         }
@@ -581,7 +615,7 @@ public class ReservationServiceImpl implements ReservationService {
         ReservationExample example = new ReservationExample();
         example.setOrderByClause("create_time DESC");
         List<ReservationWithBLOBs> reservations = reservationMapper.selectByExampleWithBLOBs(example);
-        
+
         // 转换为包含扩展信息的 DTO
         return reservations.stream()
                 .map(reservation -> {
@@ -594,16 +628,16 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public ReservationDetailDto getReservationDetailById(Long reservationId) {
         log.info("查询预约详情（含扩展信息），预约ID: {}", reservationId);
-        
+
         // 查询基础信息
         ReservationWithBLOBs reservation = reservationMapper.selectByPrimaryKey(reservationId);
         if (reservation == null) {
             return null;
         }
-        
+
         // 查询扩展信息
         ReservationDetail detail = reservationDetailMapper.selectByReservationId(reservationId);
-        
+
         // 组装DTO
         return ReservationDetailDto.from(reservation, detail);
     }

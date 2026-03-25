@@ -105,6 +105,16 @@ public class VenueServiceImpl implements VenueService {
         return result;
     }
 
+    @Override
+    @Transactional
+    public int updateVenueWithDescription(Venue venue, String description) {
+        int result = updateVenue(venue);
+        if (result > 0 && description != null) {
+            updateVenueDescription(venue.getId(), description);
+        }
+        return result;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -137,13 +147,22 @@ public class VenueServiceImpl implements VenueService {
         log.debug("开始根据ID列表批量删除场所, IDs: {}", Arrays.toString(ids));
         Assert.notEmpty(ids, "要删除的ID列表不能为空");
 
+        List<Long> venueIds = Arrays.asList(ids);
+
+        int fileDeleted = fileService.deleteFileRecordsByEntityIds(EntityType.VENUE, venueIds);
+        log.debug("已删除 {} 条场所文件记录", fileDeleted);
+
         int detailDeleted = venueDetailMapper.deleteByVenueIds(ids);
         log.debug("已删除 {} 条场所扩展信息", detailDeleted);
 
         VenueExample example = new VenueExample();
-        example.createCriteria().andIdIn(Arrays.asList(ids));
+        example.createCriteria().andIdIn(venueIds);
 
         int result = venueMapper.deleteByExample(example);
+        int reservationDeleted = reservationService.cleanReservationsWhereVenueNotExists();
+        if (reservationDeleted > 0) {
+            log.debug("已同步清理 {} 条关联被删场所的预约", reservationDeleted);
+        }
         log.debug("场所删除操作完成, 影响行数: {}", result);
         return result;
     }

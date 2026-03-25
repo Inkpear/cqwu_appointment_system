@@ -11,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -43,8 +42,7 @@ public class ReservationStatusUpdater {
     /**
      * 主调度方法，每分钟执行一次，按顺序管理预约的各个生命周期阶段。
      */
-    @Scheduled(cron = "0 * * * * ?") 
-    @Transactional
+    @Scheduled(cron = "0 * * * * ?")
     public void manageReservationLifecycle() {
         log.info("【定时任务】开始管理预约生命周期...");
         processAutoApprovals();

@@ -32,6 +32,20 @@ public interface ReservationService {
     ReservationWithBLOBs createReservation(ReservationWithBLOBs reservation, User currentUser, Venue venue);
 
     /**
+     * 创建预约及其扩展信息、附件关联。
+     * 要求整体在同一事务中执行，确保数据库不会出现半成功状态。
+     *
+     * @param reservation         预约主信息
+     * @param currentUser         当前用户
+     * @param participants        参与人员
+     * @param participantCount    参与人数
+     * @param attachmentSessionId 附件上传会话ID
+     * @return 持久化后的预约实体
+     */
+    ReservationWithBLOBs createReservationWithDetails(ReservationWithBLOBs reservation, User currentUser, Venue venue,
+            String participants, Integer participantCount, String attachmentSessionId);
+
+    /**
      * 批量关联附件到指定预约
      * 将已上传到 MinIO 的附件（通过 sessionId 标识）更新为实际的预约 ID
      *

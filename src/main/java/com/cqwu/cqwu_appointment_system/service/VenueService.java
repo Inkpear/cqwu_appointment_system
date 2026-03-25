@@ -35,6 +35,16 @@ public interface VenueService {
     int updateVenue(Venue venue);
 
     /**
+     * 更新场所基础信息及扩展描述。
+     * 两者在同一事务中执行，避免部分更新成功。
+     *
+     * @param venue       场所基础信息
+     * @param description 场所描述
+     * @return 成功更新的记录数
+     */
+    int updateVenueWithDescription(Venue venue, String description);
+
+    /**
      * 批量新增场所信息。
      *
      * @param venues 包含待新增场所信息的列表。
@@ -124,7 +134,7 @@ public interface VenueService {
     /**
      * 更新场所扩展信息（描述）
      *
-     * @param venueId 场所ID
+     * @param venueId     场所ID
      * @param description 场所描述（支持Markdown）
      */
     void updateVenueDescription(Long venueId, String description);

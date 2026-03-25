@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
@@ -138,7 +140,7 @@ public class FileServiceImpl implements FileService {
         String objectName = buildObjectName(originalFilename, sessionId, entityType, fileCategory);
 
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            String url = getPresignClient().getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.PUT)
                             .bucket(minioProperties.getBucketName())
@@ -163,20 +165,81 @@ public class FileServiceImpl implements FileService {
             throw new IllegalArgumentException("文件不存在");
         }
 
-        try {
-            minioClient.removeObject(
-                    RemoveObjectArgs.builder()
-                            .bucket(minioProperties.getBucketName())
-                            .object(appFile.getObjectName())
-                            .build());
-            log.info("成功从MinIO删除文件: {}", appFile.getObjectName());
-        } catch (Exception e) {
-            log.error("从MinIO删除文件失败, objectName: {}", appFile.getObjectName(), e);
-            throw new RuntimeException("文件物理删除失败，请联系管理员");
+        int deleted = appFileMapper.deleteByPrimaryKey(fileId);
+        if (deleted <= 0) {
+            throw new RuntimeException("文件记录删除失败");
         }
 
-        appFileMapper.deleteByPrimaryKey(fileId);
-        log.info("文件已完全删除，fileId: {}", fileId);
+        scheduleMinioDeleteAfterCommit(List.of(appFile.getObjectName()));
+
+        log.info("文件记录已删除，fileId: {}", fileId);
+    }
+
+    @Override
+    @Transactional
+    public int deleteFileRecordsByEntityIds(EntityType entityType, List<Long> entityIds) {
+        if (entityType == null || entityIds == null || entityIds.isEmpty()) {
+            return 0;
+        }
+
+        AppFileExample selectExample = new AppFileExample();
+        selectExample.createCriteria()
+                .andEntityTypeEqualTo(entityType.name())
+                .andRelatedEntityIdIn(entityIds);
+
+        List<AppFile> files = appFileMapper.selectByExample(selectExample);
+        if (files.isEmpty()) {
+            return 0;
+        }
+
+        List<String> objectNames = files.stream()
+                .map(AppFile::getObjectName)
+                .collect(Collectors.toList());
+
+        AppFileExample deleteExample = new AppFileExample();
+        deleteExample.createCriteria()
+                .andEntityTypeEqualTo(entityType.name())
+                .andRelatedEntityIdIn(entityIds);
+
+        int deleted = appFileMapper.deleteByExample(deleteExample);
+        scheduleMinioDeleteAfterCommit(objectNames);
+
+        log.info("按实体批量删除文件记录，entityType: {}, entityCount: {}, deleted: {}",
+                entityType, entityIds.size(), deleted);
+
+        return deleted;
+    }
+
+    private void scheduleMinioDeleteAfterCommit(List<String> objectNames) {
+        if (objectNames == null || objectNames.isEmpty()) {
+            return;
+        }
+
+        Runnable deleteTask = () -> {
+            for (String objectName : objectNames) {
+                try {
+                    minioClient.removeObject(
+                            RemoveObjectArgs.builder()
+                                    .bucket(minioProperties.getBucketName())
+                                    .object(objectName)
+                                    .build());
+                    log.info("成功从MinIO删除文件: {}", objectName);
+                } catch (Exception e) {
+                    log.warn("MinIO 文件删除失败，等待定时任务清理，objectName: {}", objectName, e);
+                }
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteTask.run();
+                }
+            });
+        } else {
+            deleteTask.run();
+        }
     }
 
     /**
@@ -222,24 +285,23 @@ public class FileServiceImpl implements FileService {
 
         int successCount = 0;
         for (String objectName : uploadedObjects) {
-            try {
-                String originalFilename = extractOriginalFilename(objectName);
+            String originalFilename = extractOriginalFilename(objectName);
 
-                AppFile appFile = new AppFile();
-                appFile.setRelatedEntityId(entityId);
-                appFile.setEntityType(entityType.name());
-                appFile.setFileCategory(fileCategory.name());
-                appFile.setObjectName(objectName);
-                appFile.setOriginalFilename(originalFilename);
-                appFile.setDisplayOrder(successCount);
+            AppFile appFile = new AppFile();
+            appFile.setRelatedEntityId(entityId);
+            appFile.setEntityType(entityType.name());
+            appFile.setFileCategory(fileCategory.name());
+            appFile.setObjectName(objectName);
+            appFile.setOriginalFilename(originalFilename);
+            appFile.setDisplayOrder(successCount);
 
-                appFileMapper.insertSelective(appFile);
-                successCount++;
-
-                log.debug("已创建文件记录并关联实体，fileId: {}, objectName: {}", appFile.getId(), objectName);
-            } catch (Exception e) {
-                log.error("关联文件失败，objectName: {}", objectName, e);
+            int inserted = appFileMapper.insertSelective(appFile);
+            if (inserted <= 0) {
+                throw new RuntimeException("文件关联失败，objectName: " + objectName);
             }
+            successCount++;
+
+            log.debug("已创建文件记录并关联实体，fileId: {}, objectName: {}", appFile.getId(), objectName);
         }
 
         log.info("成功关联 {} 个文件到实体 {}（类型: {}）", successCount, entityId, entityType);
@@ -348,7 +410,7 @@ public class FileServiceImpl implements FileService {
      */
     private String generatePresignedDownloadUrl(String objectName) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            return getPresignClient().getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(minioProperties.getBucketName())
@@ -357,8 +419,22 @@ public class FileServiceImpl implements FileService {
                             .build());
         } catch (Exception e) {
             log.error("生成下载URL失败, objectName: {}", objectName, e);
-            return minioProperties.getEndpoint() + "/" + minioProperties.getBucketName() + "/" + objectName;
+            String fallbackBase = StringUtils.hasText(minioProperties.getPublicEndpoint())
+                    ? minioProperties.getPublicEndpoint()
+                    : minioProperties.getEndpoint();
+            return fallbackBase + "/" + minioProperties.getBucketName() + "/" + objectName;
         }
+    }
+
+    private MinioClient getPresignClient() {
+        if (!StringUtils.hasText(minioProperties.getPublicEndpoint())) {
+            return minioClient;
+        }
+
+        return MinioClient.builder()
+                .endpoint(minioProperties.getPublicEndpoint())
+                .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())
+                .build();
     }
 
     /**

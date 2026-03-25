@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @description 定时任务组件，负责周期性地计算并更新所有场所的实时状态 (realtime_status)。
@@ -46,7 +45,6 @@ public class VenueStatusUpdater {
      * 流程：获取当前占用信息 -> 遍历所有场所 -> 计算新状态 -> 批量更新有变化的场所。
      */
     @Scheduled(cron = "0 * * * * ?")
-    @Transactional
     public void updateVenueRealtimeStatus() {
         log.info("开始执行场所实时状态更新任务...");
 

@@ -5,6 +5,7 @@ import com.cqwu.cqwu_appointment_system.security.JwtAuthenticationTokenFilter;
 import com.cqwu.cqwu_appointment_system.security.RestAuthenticationEntryPoint;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,7 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @description Spring Security 的核心配置类。
@@ -36,6 +38,24 @@ public class SecurityConfig {
 
     @Autowired
     private RestAuthenticationEntryPoint unauthorizedHandler;
+
+    @Value("${security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:80,http://127.0.0.1:80}")
+    private String allowedOrigins;
+
+    @Value("${security.cors.allowed-methods:GET,POST,PUT,DELETE,PATCH,OPTIONS}")
+    private String allowedMethods;
+
+    @Value("${security.cors.allowed-headers:Authorization,Content-Type,X-Requested-With}")
+    private String allowedHeaders;
+
+    @Value("${security.cors.exposed-headers:Authorization,Content-Disposition}")
+    private String exposedHeaders;
+
+    @Value("${security.cors.allow-credentials:false}")
+    private boolean allowCredentials;
+
+    @Value("${security.cors.max-age-seconds:3600}")
+    private long maxAgeSeconds;
 
     /**
      * 配置安全过滤器链，定义所有HTTP请求的安全处理规则。
@@ -69,18 +89,17 @@ public class SecurityConfig {
 
                 // 异常处理：若响应已提交（如 SSE 流），不要再尝试写 403，避免无意义报错
                 .exceptionHandling(handler -> handler
-                    // 配置认证入口点，处理 401 Unauthorized (未认证或认证失败)
-                    .authenticationEntryPoint(unauthorizedHandler)
-                    // 配置访问拒绝处理器，处理 403 Forbidden (已认证但无权限)
-                    .accessDeniedHandler((request, response, accessDeniedException) -> {
-                        if (response.isCommitted()) {
-                            return;
-                        }
-                        response.setStatus(HttpStatus.FORBIDDEN);
-                        response.setContentType("application/json;charset=UTF-8");
-                        response.getWriter().write("{\"code\":403,\"msg\":\"权限不足，无法访问此资源\"}");
-                    })
-                )
+                        // 配置认证入口点，处理 401 Unauthorized (未认证或认证失败)
+                        .authenticationEntryPoint(unauthorizedHandler)
+                        // 配置访问拒绝处理器，处理 403 Forbidden (已认证但无权限)
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (response.isCommitted()) {
+                                return;
+                            }
+                            response.setStatus(HttpStatus.FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"code\":403,\"msg\":\"权限不足，无法访问此资源\"}");
+                        }))
 
                 .addFilterBefore(jwtAuthenticationTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -93,14 +112,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // 【注意】生产环境应替换为具体的前端域名
-        configuration.setAllowedOrigins(Arrays.asList("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedOrigins(splitCsv(allowedOrigins));
+        configuration.setAllowedMethods(splitCsv(allowedMethods));
+        configuration.setAllowedHeaders(splitCsv(allowedHeaders));
+        configuration.setExposedHeaders(splitCsv(exposedHeaders));
+        configuration.setAllowCredentials(allowCredentials);
+        configuration.setMaxAge(maxAgeSeconds);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private List<String> splitCsv(String value) {
+        return java.util.Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isEmpty())
+                .collect(Collectors.toList());
     }
 
     /**

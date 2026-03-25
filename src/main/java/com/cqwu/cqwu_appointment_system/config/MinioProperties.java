@@ -20,6 +20,12 @@ public class MinioProperties {
     private String endpoint;
 
     /**
+     * MinIO 对外可访问地址（用于返回给前端的预签名URL域名）
+     * 例如: http://your-vm-ip:1900
+     */
+    private String publicEndpoint;
+
+    /**
      * MinIO 访问密钥（Access Key）
      */
     private String accessKey;

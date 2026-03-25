@@ -1,6 +1,8 @@
 # 构建产物
-target/
+target/*
+!target/*.jar
 *.jar
+!target/*.jar
 *.war
 *.class
 

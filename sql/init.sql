@@ -4,7 +4,8 @@ CREATE DATABASE cqwu CHARACTER
 set
   utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE cqwu
+USE cqwu;
+
 DROP TABLE IF EXISTS `venue`;
 
 DROP TABLE IF EXISTS `reservations`;
@@ -13,7 +14,7 @@ DROP TABLE IF EXISTS `time_blocks`;
 
 DROP TABLE IF EXISTS `user`;
 
-DROP TABLE IF EXISTS `category_id`;
+DROP TABLE IF EXISTS `venue_category`;
 
 -- ----------------------------
 -- Table structure for venue
@@ -112,7 +113,7 @@ CREATE TABLE
     `sex` TINYINT NULL DEFAULT 0 COMMENT '性别 (1: 男, 2: 女, 0: 未知)',
     `college` VARCHAR(100) NULL DEFAULT NULL COMMENT '所属学院',
     `major` VARCHAR(100) NULL DEFAULT NULL COMMENT '所属专业',
-    `role` VARCHAR(30) NOT NULL DEFAULT 'user' COMMENT '角色 (例如: user, admin)',
+    `role` VARCHAR(30) NOT NULL DEFAULT 'USER' COMMENT '角色(USER, ADMIN, ROOT)',
     `last_login_time` DATETIME NULL DEFAULT NULL COMMENT '最后登录时间',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
     `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
@@ -177,34 +178,34 @@ SET
 -- ===================================================================
 -- 预约扩展信息表 (reservation_detail)
 -- ===================================================================
-CREATE TABLE `reservation_detail` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `reservation_id` BIGINT NOT NULL COMMENT '预约ID，关联 reservations 表',
-  `participants` TEXT NULL COMMENT '参与人员名',
-  `participant_count` INT NULL DEFAULT 0 COMMENT '参与人数',
-  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `uk_reservation_id` (`reservation_id`),
-  CONSTRAINT `fk_reservation_detail_reservation` 
-    FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`id`) 
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci 
-COMMENT='预约扩展信息表（参与人员等）';
+CREATE TABLE
+  `reservation_detail` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `reservation_id` BIGINT NOT NULL COMMENT '预约ID，关联 reservations 表',
+    `participants` TEXT NULL COMMENT '参与人员名',
+    `participant_count` INT NULL DEFAULT 0 COMMENT '参与人数',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `uk_reservation_id` (`reservation_id`),
+    CONSTRAINT `fk_reservation_detail_reservation` FOREIGN KEY (`reservation_id`) REFERENCES `reservations` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE = InnoDB CHARACTER
+SET
+  utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT = '预约扩展信息表（参与人员等）';
 
 -- ===================================================================
 -- 场所扩展信息表 (venue_detail)
 -- ===================================================================
-CREATE TABLE `venue_detail` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `venue_id` BIGINT NOT NULL COMMENT '场所ID，关联 venue 表',
-  `description` TEXT NULL COMMENT '场所描述',
-  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `uk_venue_id` (`venue_id`),
-  CONSTRAINT `fk_venue_detail_venue` 
-    FOREIGN KEY (`venue_id`) REFERENCES `venue` (`id`) 
-    ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci 
-COMMENT='场所扩展信息表（描述等）';
+CREATE TABLE
+  `venue_detail` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `venue_id` BIGINT NOT NULL COMMENT '场所ID，关联 venue 表',
+    `description` TEXT NULL COMMENT '场所描述',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE INDEX `uk_venue_id` (`venue_id`),
+    CONSTRAINT `fk_venue_detail_venue` FOREIGN KEY (`venue_id`) REFERENCES `venue` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  ) ENGINE = InnoDB CHARACTER
+SET
+  utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT = '场所扩展信息表（描述等）';

@@ -171,14 +171,9 @@ public class VenueController {
         BeanUtils.copyProperties(updateRequest, venueToUpdate);
         venueToUpdate.setId(id);
 
-        int result = venueService.updateVenue(venueToUpdate);
+        int result = venueService.updateVenueWithDescription(venueToUpdate, updateRequest.getDescription());
         if (result == 0) {
             throw new IllegalArgumentException(Constants.UPDATE_FAIL_NOT_FOUND);
-        }
-
-        if (updateRequest.getDescription() != null) {
-            venueService.updateVenueDescription(id, updateRequest.getDescription());
-            log.info("已更新场所描述");
         }
 
         VenueDetailDto updatedVenue = venueService.getVenueDetailById(id);

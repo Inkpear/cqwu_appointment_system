@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -56,7 +55,6 @@ public class TempFileCleanupScheduler {
      * 每小时执行一次，清理孤儿文件
      */
     @Scheduled(cron = "0 0 * * * ?")
-    @Transactional
     public void cleanupOrphanFiles() {
         log.info("【定时任务】开始清理孤儿文件...");
 
@@ -91,6 +89,9 @@ public class TempFileCleanupScheduler {
         int deletedCount = 0;
         for (AppFile file : unlinkedFiles) {
             try {
+                appFileMapper.deleteByPrimaryKey(file.getId());
+                deletedCount++;
+
                 try {
                     minioClient.removeObject(
                             RemoveObjectArgs.builder()
@@ -101,9 +102,6 @@ public class TempFileCleanupScheduler {
                 } catch (Exception e) {
                     log.warn("【数据库清理】MinIO 文件可能已不存在: {}", file.getObjectName());
                 }
-
-                appFileMapper.deleteByPrimaryKey(file.getId());
-                deletedCount++;
 
                 log.debug("【数据库清理】删除未关联记录，fileId: {}, objectName: {}, createTime: {}",
                         file.getId(), file.getObjectName(), file.getCreateTime());
@@ -241,6 +239,9 @@ public class TempFileCleanupScheduler {
         int deletedCount = 0;
         for (AppFile file : orphanRecords) {
             try {
+                appFileMapper.deleteByPrimaryKey(file.getId());
+                deletedCount++;
+
                 try {
                     minioClient.removeObject(
                             RemoveObjectArgs.builder()
@@ -251,9 +252,6 @@ public class TempFileCleanupScheduler {
                 } catch (Exception e) {
                     log.warn("【数据库清理】MinIO 文件可能已不存在: {}", file.getObjectName());
                 }
-
-                appFileMapper.deleteByPrimaryKey(file.getId());
-                deletedCount++;
 
                 log.debug("【数据库清理】成功删除孤儿记录，fileId: {}, objectName: {}, entityType: {}, entityId: {}",
                         file.getId(), file.getObjectName(), file.getEntityType(), file.getRelatedEntityId());

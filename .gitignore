@@ -41,3 +41,12 @@ temp.sql
 
 # AI提示词
 copilot-instructions.md
+
+# env files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+/cqwu_appointment_system_vue/
+/offline_bundle_*/
