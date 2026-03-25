@@ -71,7 +71,7 @@ public class AuthenticationController {
      * 该接口保留用于测试环境手工指定用户ID登录。
      * 生产环境请优先使用 CAS 登录流程。
      */
-    @PostMapping("/login")
+    // @PostMapping("/login")
     public ResponseEntity<AjaxResult> login(
             @RequestBody LoginRequest loginRequest) {
         log.info("开始处理用户 '{}' 的登录请求...", loginRequest.getUserId());

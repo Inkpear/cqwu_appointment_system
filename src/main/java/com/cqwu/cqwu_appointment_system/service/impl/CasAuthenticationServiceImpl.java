@@ -8,6 +8,7 @@ import com.cqwu.cqwu_appointment_system.service.AuthenticationService;
 import com.cqwu.cqwu_appointment_system.service.CasAuthenticationService;
 import com.cqwu.cqwu_appointment_system.service.CasClientService;
 import com.cqwu.cqwu_appointment_system.service.UserService;
+import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -23,6 +24,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class CasAuthenticationServiceImpl implements CasAuthenticationService {
 
     private static final String CAS_CODE_KEY_PREFIX = "cas:code:";
+    private static final String CAS_STATE_KEY_PREFIX = "cas:state:";
 
     @Autowired
     private CasProperties casProperties;
@@ -43,15 +45,21 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
     public String buildCasLoginRedirectUrl(String frontendRedirect) {
         ensureCasEnabled();
 
-        if (frontendRedirect != null && !frontendRedirect.isBlank()) {
-            log.info("当前 CAS 登录流程使用固定前端回跳地址，已忽略前端自定义 redirect: {}", frontendRedirect);
-        }
+        String redirectToUse = resolveAndValidateFrontendRedirect(frontendRedirect);
+        String state = UUID.randomUUID().toString().replace("-", "");
+
+        redisCache.setCacheObject(
+                CAS_STATE_KEY_PREFIX + state,
+                redirectToUse,
+                casProperties.getStateTtl().toMillis(),
+                TimeUnit.MILLISECONDS);
 
         String callbackServiceUrl = buildCallbackServiceUrl();
 
         return UriComponentsBuilder
                 .fromUriString(Objects.requireNonNull(casProperties.getServerLoginUrl()))
                 .queryParam("service", callbackServiceUrl)
+                .queryParam("state", state)
                 .build()
                 .encode()
                 .toUriString();
@@ -62,13 +70,11 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
         ensureCasEnabled();
         Assert.hasText(ticket, "CAS ticket 不能为空");
 
-        String frontendRedirect = casProperties.getFrontendRedirectUrl();
-        if (frontendRedirect == null || frontendRedirect.isBlank()) {
-            frontendRedirect = "/login/callback";
-        }
+        String frontendRedirect = consumeFrontendRedirectByState(state);
 
         String callbackServiceUrl = buildCallbackServiceUrl();
         CasUserPrincipal principal = casClientService.validateServiceTicket(ticket, callbackServiceUrl);
+        // log.info("[CAS-DEBUG] validated userId={}, attributes={}", principal.getUserId(), principal.getAttributes());
 
         User user = userService.loginOrSyncUser(principal.getUserId());
         syncBasicProfile(user, principal.getAttributes());
@@ -86,6 +92,70 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
                 .build()
                 .encode()
                 .toUriString();
+    }
+
+    private String consumeFrontendRedirectByState(String state) {
+        String fallback = casProperties.getFrontendRedirectUrl();
+        if (fallback == null || fallback.isBlank()) {
+            fallback = "/login/callback";
+        }
+
+        if (state == null || state.isBlank()) {
+            return fallback;
+        }
+
+        String stateKey = CAS_STATE_KEY_PREFIX + state;
+        String redirect = redisCache.getCacheObject(stateKey);
+        redisCache.deleteObject(stateKey);
+
+        if (redirect == null || redirect.isBlank()) {
+            return fallback;
+        }
+        return redirect;
+    }
+
+    private String resolveAndValidateFrontendRedirect(String requestedRedirect) {
+        String fallback = casProperties.getFrontendRedirectUrl();
+        if (fallback == null || fallback.isBlank()) {
+            fallback = "/login/callback";
+        }
+
+        if (requestedRedirect == null || requestedRedirect.isBlank()) {
+            return fallback;
+        }
+
+        String trimmed = requestedRedirect.trim();
+        if (trimmed.startsWith("/")) {
+            return trimmed;
+        }
+
+        if (isSameOrigin(trimmed, fallback)) {
+            return trimmed;
+        }
+
+        log.warn("非法 CAS redirect 参数，已回退默认地址: {}", trimmed);
+        return fallback;
+    }
+
+    private boolean isSameOrigin(String url1, String url2) {
+        try {
+            URI u1 = URI.create(url1);
+            URI u2 = URI.create(url2);
+            if (u1.getHost() == null || u2.getHost() == null) {
+                return false;
+            }
+
+            String s1 = u1.getScheme() == null ? "" : u1.getScheme();
+            String s2 = u2.getScheme() == null ? "" : u2.getScheme();
+            int p1 = u1.getPort();
+            int p2 = u2.getPort();
+
+            return s1.equalsIgnoreCase(s2)
+                    && u1.getHost().equalsIgnoreCase(u2.getHost())
+                    && p1 == p2;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     @Override
@@ -136,12 +206,12 @@ public class CasAuthenticationServiceImpl implements CasAuthenticationService {
         User update = new User();
         update.setId(currentUser.getId());
 
-        String casName = firstNonBlank(attributes.get("cn"), attributes.get("user_name"), attributes.get("name"));
+        String casName = attributes.get("cn");
         if (casName != null && !casName.equals(currentUser.getName())) {
             update.setName(casName);
         }
 
-        String college = firstNonBlank(attributes.get("college"), attributes.get("department"));
+        String college = attributes.get("eduPersonOrgDN");
         if (college != null && !college.equals(currentUser.getCollege())) {
             update.setCollege(college);
         }
